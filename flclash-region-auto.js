@@ -43,7 +43,7 @@ const DNS_CONFIG = {
   ipv6: false,
   "enhanced-mode": "fake-ip",
   "default-nameserver": ["223.5.5.5", "119.29.29.29", "8.8.8.8"],
-  "respect-rules":"cnm"
+  "respect-rules":"cnm",
   nameserver: ["https://1.1.1.1/dns-query", "https://8.8.8.8/dns-query"],
   "proxy-server-nameserver": ["https://223.5.5.5/dns-query"], // 请改成你原来那 1 项的实际值
   "direct-nameserver": ["https://223.5.5.5/dns-query"],
