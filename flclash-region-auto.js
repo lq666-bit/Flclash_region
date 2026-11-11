@@ -148,6 +148,8 @@ const US_RULES = [
   "DOMAIN-SUFFIX,stackoverflow.com",
   "DOMAIN-SUFFIX,stackexchange.com",
   "DOMAIN-SUFFIX,imgur.com",
+
+  "DOMAIN-KEYWORD,github",
 ];
 
 // -------------------- 工具函数 --------------------
