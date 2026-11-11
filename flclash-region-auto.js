@@ -78,7 +78,7 @@ const CUSTOM_RULES = [
     "DOMAIN-SUFFIX,ytimg.com",
     "DOMAIN-SUFFIX,ggpht.com",
     "DOMAIN-SUFFIX,yt.be",
-    "DOMAIN-KEYWORD,youtubei,"
+    "DOMAIN-KEYWORD,youtubei",
     // 不怎么需要登录的网站
     "DOMAIN-SUFFIX,wikipedia.org",
     "DOMAIN-SUFFIX,wikimedia.org",
