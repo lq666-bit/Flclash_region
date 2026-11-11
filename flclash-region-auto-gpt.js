@@ -1,225 +1,266 @@
-// ============================================================
-// FLClash 覆写脚本
+
+// FLClash 订阅覆写脚本
 // 地区自动测速 + GitHub 远程规则集
-// ============================================================
-
-const TEST_URL = "https://www.gstatic.com/generate_204";
-const INTERVAL = 300;
-const TOLERANCE = 50;
-
-const REPO_RAW = "https://raw.githubusercontent.com/lq666-bit/Flclash_region/main";
-const PROVIDER_INTERVAL = 86400;
-
-const REGIONS = [
-  ["香港", "🇭🇰", /香港|港|HK|Hong\s?Kong|🇭🇰/i],
-  ["台湾", "🇹🇼", /台湾|台|TW|Taiwan|🇹🇼/i],
-  ["日本", "🇯🇵", /日本|JP|Japan|东京|大阪|🇯🇵/i],
-  ["新加坡", "🇸🇬", /新加坡|狮城|SG|Singapore|🇸🇬/i],
-  ["美国", "🇺🇸", /美国|US|USA|United\s?States|洛杉矶|圣何塞|西雅图|芝加哥|纽约|🇺🇸/i],
-  ["韩国", "🇰🇷", /韩国|韩|KR|Korea|首尔|🇰🇷/i],
-  ["英国", "🇬🇧", /英国|UK|GB|United\s?Kingdom|伦敦|🇬🇧/i],
-  ["德国", "🇩🇪", /德国|DE|Germany|法兰克福|🇩🇪/i],
-  ["法国", "🇫🇷", /法国|FR|France|巴黎|🇫🇷/i],
-  ["加拿大", "🇨🇦", /加拿大|CA|Canada|多伦多|温哥华|🇨🇦/i],
-  ["澳大利亚", "🇦🇺", /澳大利亚|澳洲|AU|Australia|悉尼|🇦🇺/i],
-  ["俄罗斯", "🇷🇺", /俄罗斯|俄|RU|Russia|🇷🇺/i],
-  ["印度", "🇮🇳", /印度|IN|India|孟买|🇮🇳/i],
-  ["土耳其", "🇹🇷", /土耳其|TR|Turkey|Türkiye|🇹🇷/i],
-  ["阿根廷", "🇦🇷", /阿根廷|AR|Argentina|🇦🇷/i],
-  ["巴西", "🇧🇷", /巴西|BR|Brazil|🇧🇷/i],
-  ["荷兰", "🇳🇱", /荷兰|NL|Netherlands|阿姆斯特丹|🇳🇱/i],
-  ["马来西亚", "🇲🇾", /马来西亚|马来|MY|Malaysia|🇲🇾/i],
-  ["泰国", "🇹🇭", /泰国|TH|Thailand|曼谷|🇹🇭/i],
-  ["越南", "🇻🇳", /越南|VN|Vietnam|🇻🇳/i],
-  ["菲律宾", "🇵🇭", /菲律宾|PH|Philippines|🇵🇭/i],
-  ["印度尼西亚", "🇮🇩", /印度尼西亚|印尼|ID|Indonesia|🇮🇩/i],
-];
-
-const INFO_NODE = /剩余流量|套餐到期|到期时间|距离下次|官网|订阅|流量|重置|过期|expire|traffic/i;
-
-const DNS_CONFIG = {
-  enable: true,
-  ipv6: false,
-  "enhanced-mode": "fake-ip",
-  "respect-rules": true,
-  "default-nameserver": ["223.5.5.5", "119.29.29.29", "8.8.8.8"],
-  nameserver: [
-    "https://1.1.1.1/dns-query",
-    "https://8.8.8.8/dns-query"
-  ],
-  "proxy-server-nameserver": ["https://223.5.5.5/dns-query"],
-  "direct-nameserver": ["https://223.5.5.5/dns-query"],
-};
-
-const GLOBAL_AUTO_NAME = "♻️ 全部-自动";
-
-const matchRegion = (name) => {
-  for (const [region, flag, re] of REGIONS) {
-    if (re.test(name)) return { region, flag };
-  }
-  return { region: "其他", flag: "🌐" };
-};
+// 适用于 FLClash 0.9.3
+// 入口：const main = (config) => { ... return config; }
 
 const main = (config) => {
-  // 0. DNS 配置：保留原脚本行为
+  const TEST_URL = "https://www.gstatic.com/generate_204";
+  const INTERVAL = 300;
+  const TOLERANCE = 50;
+
+  const REPO_RAW =
+    "https://raw.githubusercontent.com/lq666-bit/Flclash_region/main";
+
+  const PROVIDER_INTERVAL = 86400;
+
+  // 地区节点识别规则
+  // 使用完整地区名称或独立英文缩写，减少误匹配
+  const REGIONS = [
+    { name: "香港", pattern: /香港|Hong\s?Kong|(?:^|[^A-Za-z])HK(?:$|[^A-Za-z])|🇭🇰/i },
+    { name: "台湾", pattern: /台湾|台灣|Taiwan|(?:^|[^A-Za-z])TW(?:$|[^A-Za-z])|🇹🇼/i },
+    { name: "日本", pattern: /日本|Japan|(?:^|[^A-Za-z])JP(?:$|[^A-Za-z])|🇯🇵/i },
+    { name: "新加坡", pattern: /新加坡|Singapore|(?:^|[^A-Za-z])SG(?:$|[^A-Za-z])|🇸🇬/i },
+    { name: "美国", pattern: /美国|美國|United States|USA|(?:^|[^A-Za-z])US(?:$|[^A-Za-z])|🇺🇸/i },
+    { name: "韩国", pattern: /韩国|韓國|South Korea|Korea|(?:^|[^A-Za-z])KR(?:$|[^A-Za-z])|🇰🇷/i },
+    { name: "英国", pattern: /英国|英國|United Kingdom|(?:^|[^A-Za-z])UK(?:$|[^A-Za-z])|🇬🇧/i },
+    { name: "德国", pattern: /德国|德國|Germany|(?:^|[^A-Za-z])DE(?:$|[^A-Za-z])|🇩🇪/i },
+    { name: "法国", pattern: /法国|法國|France|(?:^|[^A-Za-z])FR(?:$|[^A-Za-z])|🇫🇷/i },
+    { name: "加拿大", pattern: /加拿大|Canada|(?:^|[^A-Za-z])CA(?:$|[^A-Za-z])|🇨🇦/i },
+    { name: "澳大利亚", pattern: /澳大利亚|澳洲|Australia|(?:^|[^A-Za-z])AU(?:$|[^A-Za-z])|🇦🇺/i },
+    { name: "俄罗斯", pattern: /俄罗斯|俄羅斯|Russia|(?:^|[^A-Za-z])RU(?:$|[^A-Za-z])|🇷🇺/i },
+    { name: "印度", pattern: /印度|India|(?:^|[^A-Za-z])IN(?:$|[^A-Za-z])|🇮🇳/i },
+    { name: "土耳其", pattern: /土耳其|Turkey|Türkiye|(?:^|[^A-Za-z])TR(?:$|[^A-Za-z])|🇹🇷/i },
+    { name: "阿根廷", pattern: /阿根廷|Argentina|(?:^|[^A-Za-z])AR(?:$|[^A-Za-z])|🇦🇷/i },
+    { name: "巴西", pattern: /巴西|Brazil|(?:^|[^A-Za-z])BR(?:$|[^A-Za-z])|🇧🇷/i },
+    { name: "荷兰", pattern: /荷兰|荷蘭|Netherlands|(?:^|[^A-Za-z])NL(?:$|[^A-Za-z])|🇳🇱/i },
+    { name: "马来西亚", pattern: /马来西亚|馬來西亞|Malaysia|(?:^|[^A-Za-z])MY(?:$|[^A-Za-z])|🇲🇾/i },
+    { name: "泰国", pattern: /泰国|泰國|Thailand|(?:^|[^A-Za-z])TH(?:$|[^A-Za-z])|🇹🇭/i },
+    { name: "越南", pattern: /越南|Vietnam|(?:^|[^A-Za-z])VN(?:$|[^A-Za-z])|🇻🇳/i },
+    { name: "菲律宾", pattern: /菲律宾|菲律賓|Philippines|(?:^|[^A-Za-z])PH(?:$|[^A-Za-z])|🇵🇭/i },
+    { name: "印尼", pattern: /印尼|印度尼西亚|Indonesia|(?:^|[^A-Za-z])ID(?:$|[^A-Za-z])|🇮🇩/i }
+  ];
+
+  // 排除流量、到期时间、官网等非代理节点
+  const INFO_NODE =
+    /剩余流量|距离下次|套餐到期|到期时间|官网|公告|重置流量|过期时间/i;
+
+  const DNS_CONFIG = {
+    enable: true,
+    ipv6: false,
+    "enhanced-mode": "fake-ip",
+    "respect-rules": true,
+    "default-nameserver": [
+      "223.5.5.5",
+      "119.29.29.29",
+      "8.8.8.8"
+    ],
+    nameserver: [
+      "https://1.1.1.1/dns-query",
+      "https://8.8.8.8/dns-query"
+    ],
+    "proxy-server-nameserver": [
+      "https://223.5.5.5/dns-query"
+    ],
+    "direct-nameserver": [
+      "https://223.5.5.5/dns-query"
+    ]
+  };
+
+  const GLOBAL_AUTO_NAME = "♻️ 全部-自动";
+  const REGION_SELECT_NAME = "🌍 地区选择";
+
+  // 初始化配置
+  config.proxies = Array.isArray(config.proxies) ? config.proxies : [];
+  config["proxy-groups"] = Array.isArray(config["proxy-groups"])
+    ? config["proxy-groups"]
+    : [];
+  config.rules = Array.isArray(config.rules) ? config.rules : [];
+  config["rule-providers"] = config["rule-providers"] || {};
+
+  // 保留原 DNS 中未被本脚本指定的字段
   config.dns = {
     ...(config.dns || {}),
-    ...DNS_CONFIG,
+    ...DNS_CONFIG
   };
 
-  const proxies = (config.proxies || []).filter(
-    (p) => p && p.name && !INFO_NODE.test(p.name)
+  // 过滤信息节点
+  config.proxies = config.proxies.filter(
+    node => node && node.name && !INFO_NODE.test(node.name)
   );
 
-  if (proxies.length === 0) return config;
+  const proxyNames = config.proxies.map(node => node.name);
 
-  // 1. 节点地区分类
-  const buckets = new Map();
-  for (const p of proxies) {
-    const { region, flag } = matchRegion(p.name);
-    if (!buckets.has(region)) buckets.set(region, { flag, names: [] });
-    buckets.get(region).names.push(p.name);
-  }
+  // 根据节点名称识别地区
+  const regionNodes = {};
 
-  const groups = config["proxy-groups"] || [];
-  const regionGroupNames = [];
-  const order = [...REGIONS.map((r) => r[0]), "其他"];
-  const regions = [...buckets.keys()].sort(
-    (a, b) => order.indexOf(a) - order.indexOf(b)
-  );
-
-  // 2. 找订阅自带自动测速组
-  const subAutoCandidates = groups.filter((g) => g.type === "url-test");
-  const subAuto =
-    subAutoCandidates.find((g) => /自动|auto/i.test(g.name)) ||
-    subAutoCandidates[0];
-
-  // 3. 创建或更新地区自动测速组
-  for (const region of regions) {
-    const { flag, names } = buckets.get(region);
-    const groupName = `${flag} ${region}-自动`;
-    regionGroupNames.push(groupName);
-
-    let group = groups.find((g) => g.name === groupName);
-    if (!group) {
-      group = { name: groupName, type: "url-test" };
-      groups.push(group);
-    }
-
-    group.type = "url-test";
-    group.proxies = [...names];
-    group.url = TEST_URL;
-    group.interval = INTERVAL;
-    group.tolerance = TOLERANCE;
-    group.lazy = true;
-  }
-
-  // 4. 机场使用订阅自动测速组；没有则建立全节点自动组
-  let airportTarget = subAuto ? subAuto.name : null;
-  if (!airportTarget) {
-    airportTarget = GLOBAL_AUTO_NAME;
-    let group = groups.find((g) => g.name === GLOBAL_AUTO_NAME);
-    if (!group) {
-      group = { name: GLOBAL_AUTO_NAME, type: "url-test" };
-      groups.push(group);
-    }
-    group.type = "url-test";
-    group.proxies = proxies.map((p) => p.name);
-    group.url = TEST_URL;
-    group.interval = INTERVAL;
-    group.tolerance = TOLERANCE;
-    group.lazy = true;
-  }
-
-  // 5. 地区选择组
-  const pickName = "🌍 地区选择";
-  let pickGroup = groups.find((g) => g.name === pickName);
-  if (!pickGroup) {
-    pickGroup = { name: pickName, type: "select" };
-    groups.unshift(pickGroup);
-  }
-  pickGroup.type = "select";
-  pickGroup.proxies = [...regionGroupNames, "DIRECT"];
-
-  // 6. 订阅手动选择组增加地区选择入口
-  for (const g of groups) {
-    if (g.type !== "select" || g.name === pickName) continue;
-    g.proxies = g.proxies || [];
-    if (!g.proxies.includes(pickName)) g.proxies.unshift(pickName);
-  }
-
-  // 7. 订阅自动类组开启懒测速
-  for (const g of groups) {
-    if (!["url-test", "fallback", "load-balance"].includes(g.type)) continue;
-    if (regionGroupNames.includes(g.name) || g.name === GLOBAL_AUTO_NAME) continue;
-    g.lazy = true;
-  }
-
-  // 8. 注册 GitHub 远程规则集
-  const ruleProviders = { ...(config["rule-providers"] || {}) };
-
-  ruleProviders["__flclash_script_airport"] = {
-    type: "http",
-    behavior: "classical",
-    format: "yaml",
-    url: `${REPO_RAW}/rules/airport.yaml`,
-    path: "./rule_providers/flclash_script_airport.yaml",
-    interval: PROVIDER_INTERVAL,
-  };
-
-  const taiwanTarget = regionGroupNames.find((n) => n.endsWith(" 台湾-自动"));
-  if (taiwanTarget) {
-    ruleProviders["__flclash_script_taiwan"] = {
-      type: "http",
-      behavior: "classical",
-      format: "yaml",
-      url: `${REPO_RAW}/rules/taiwan.yaml`,
-      path: "./rule_providers/flclash_script_taiwan.yaml",
-      interval: PROVIDER_INTERVAL,
-    };
-  }
-
-  const usTarget = regionGroupNames.find((n) => n.endsWith(" 美国-自动"));
-  if (usTarget) {
-    ruleProviders["__flclash_script_us"] = {
-      type: "http",
-      behavior: "classical",
-      format: "yaml",
-      url: `${REPO_RAW}/rules/us.yaml`,
-      path: "./rule_providers/flclash_script_us.yaml",
-      interval: PROVIDER_INTERVAL,
-    };
-  }
-
-  config["rule-providers"] = ruleProviders;
-
-  // 9. 规则集引用置于订阅原规则之前，保证脚本规则优先匹配
-  const customRuleEntries = [
-    `RULE-SET,__flclash_script_airport,${airportTarget}`,
-  ];
-  if (taiwanTarget) {
-    customRuleEntries.push(`RULE-SET,__flclash_script_taiwan,${taiwanTarget}`);
-  }
-  if (usTarget) {
-    customRuleEntries.push(`RULE-SET,__flclash_script_us,${usTarget}`);
-  }
-
-  // 避免重复插入本脚本自己的 RULE-SET 引用
-  const ownProviderNames = new Set([
-    "__flclash_script_airport",
-    "__flclash_script_taiwan",
-    "__flclash_script_us",
-  ]);
-  const originalRules = (config.rules || []).filter((rule) => {
-    if (typeof rule !== "string") return true;
-    if (!rule.startsWith("RULE-SET,")) return true;
-    const providerName = rule.split(",")[1];
-    return !ownProviderNames.has(providerName);
+  REGIONS.forEach(region => {
+    regionNodes[region.name] = proxyNames.filter(name =>
+      region.pattern.test(name)
+    );
   });
 
-  config.rules = [...customRuleEntries, ...originalRules];
+  // 创建或更新策略组
+  const upsertGroup = group => {
+    const groups = config["proxy-groups"];
+    const index = groups.findIndex(item => item.name === group.name);
 
-  // 10. 写回策略组
-  config["proxy-groups"] = groups;
+    if (index >= 0) {
+      groups[index] = {
+        ...groups[index],
+        ...group
+      };
+    } else {
+      groups.push(group);
+    }
+  };
+
+  // 找到订阅原有的自动测速组
+  const originalAutoGroup = config["proxy-groups"].find(group =>
+    group.type === "url-test" &&
+    !group.name.includes("全部-自动") &&
+    /自动|auto/i.test(group.name)
+  );
+
+  // 创建或更新全部节点自动测速组
+  upsertGroup({
+    name: GLOBAL_AUTO_NAME,
+    type: "url-test",
+    proxies: proxyNames,
+    url: TEST_URL,
+    interval: INTERVAL,
+    tolerance: TOLERANCE,
+    lazy: true
+  });
+
+  // 创建地区自动测速组
+  const regionGroupNames = [];
+
+  REGIONS.forEach(region => {
+    const nodes = regionNodes[region.name];
+
+    if (!nodes || nodes.length === 0) return;
+
+    const groupName = `♻️ ${region.name}-自动测速`;
+
+    upsertGroup({
+      name: groupName,
+      type: "url-test",
+      proxies: nodes,
+      url: TEST_URL,
+      interval: INTERVAL,
+      tolerance: TOLERANCE,
+      lazy: true
+    });
+
+    regionGroupNames.push(groupName);
+  });
+
+  // 机场规则的目标：优先使用订阅原有自动组
+  const airportTarget = originalAutoGroup
+    ? originalAutoGroup.name
+    : GLOBAL_AUTO_NAME;
+
+  // 创建地区选择组
+  upsertGroup({
+    name: REGION_SELECT_NAME,
+    type: "select",
+    proxies: [
+      ...regionGroupNames,
+      GLOBAL_AUTO_NAME,
+      "DIRECT"
+    ]
+  });
+
+  // 让其他 select 组可以选择地区策略组
+  config["proxy-groups"].forEach(group => {
+    if (
+      group.type === "select" &&
+      group.name !== REGION_SELECT_NAME &&
+      !group.proxies.includes(REGION_SELECT_NAME)
+    ) {
+      group.proxies.unshift(REGION_SELECT_NAME);
+    }
+
+    if (
+      ["url-test", "fallback", "load-balance"].includes(group.type)
+    ) {
+      group.lazy = true;
+    }
+  });
+
+  // 注册 GitHub 远程 YAML 规则集
+  const addRemoteProvider = (name, fileName) => {
+    config["rule-providers"][name] = {
+      type: "http",
+      behavior: "classical",
+      format: "yaml",
+      url: `${REPO_RAW}/rules/${fileName}`,
+      path: `./rule_providers/${name}.yaml`,
+      interval: PROVIDER_INTERVAL
+    };
+  };
+
+  // 机场规则始终注册
+  addRemoteProvider(
+    "__flclash_script_airport",
+    "airport.yaml"
+  );
+
+  // 台湾规则：有台湾节点时才注册
+  const taiwanGroup = "♻️ 台湾-自动测速";
+  if (regionNodes["台湾"].length > 0) {
+    addRemoteProvider(
+      "__flclash_script_taiwan",
+      "taiwan.yaml"
+    );
+  }
+
+  // 美国规则：有美国节点时才注册
+  const usGroup = "♻️ 美国-自动测速";
+  if (regionNodes["美国"].length > 0) {
+    addRemoteProvider(
+      "__flclash_script_us",
+      "us.yaml"
+    );
+  }
+
+  // 删除本脚本上一次插入的规则引用，避免重复
+  const managedProviders = [
+    "__flclash_script_airport",
+    "__flclash_script_taiwan",
+    "__flclash_script_us"
+  ];
+
+  config.rules = config.rules.filter(rule => {
+    if (typeof rule !== "string") return true;
+
+    return !managedProviders.some(name =>
+      rule.startsWith(`RULE-SET,${name},`)
+    );
+  });
+
+  // 自定义远程规则优先于订阅原有规则
+  const customRules = [
+    `RULE-SET,__flclash_script_airport,${airportTarget}`
+  ];
+
+  if (regionNodes["台湾"].length > 0) {
+    customRules.push(
+      `RULE-SET,__flclash_script_taiwan,${taiwanGroup}`
+    );
+  }
+
+  if (regionNodes["美国"].length > 0) {
+    customRules.push(
+      `RULE-SET,__flclash_script_us,${usGroup}`
+    );
+  }
+
+  config.rules = [
+    ...customRules,
+    ...config.rules
+  ];
+
   return config;
 };
