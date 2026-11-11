@@ -72,6 +72,19 @@ const CUSTOM_RULES = [
     "IP-CIDR,8.8.4.4/32,no-resolve",
     "IP-CIDR,1.1.1.1/32,no-resolve",
     "IP-CIDR,1.0.0.1/32,no-resolve",
+    // Google 服务（Gmail、应用商店、云端硬盘、地图等）
+    "DOMAIN-SUFFIX,google.com",
+    "DOMAIN-SUFFIX,googleapis.com",
+    "DOMAIN-SUFFIX,gstatic.com",
+    "DOMAIN-SUFFIX,googleusercontent.com",
+    "DOMAIN-SUFFIX,gmail.com",
+    "DOMAIN-SUFFIX,googlemail.com",
+    "DOMAIN-SUFFIX,gvt1.com",
+    "DOMAIN-SUFFIX,gvt2.com",
+    "DOMAIN-SUFFIX,android.com",
+    "DOMAIN-SUFFIX,withgoogle.com",
+    "DOMAIN-SUFFIX,google.com.hk",
+    "DOMAIN-SUFFIX,googleapis.cn",
     // Telegram
     "DOMAIN-SUFFIX,telegram.org",
     "DOMAIN-SUFFIX,telegram.me",
@@ -100,6 +113,17 @@ const CUSTOM_RULES = [
     "DOMAIN-SUFFIX,claude.ai",
     "DOMAIN-SUFFIX,claude.com",
     "DOMAIN-SUFFIX,claudeusercontent.com",
+    // X / Twitter
+    "DOMAIN-SUFFIX,twitter.com",
+    "DOMAIN-SUFFIX,x.com",
+    "DOMAIN-SUFFIX,t.co",
+    "DOMAIN-SUFFIX,twimg.com",
+    "DOMAIN-SUFFIX,twittercdn.com",
+    "DOMAIN-SUFFIX,twitterstat.us",
+    "DOMAIN-SUFFIX,abs.twimg.com",
+    "DOMAIN-SUFFIX,pscp.tv",
+    "DOMAIN-SUFFIX,periscope.tv",
+    "DOMAIN-SUFFIX,ads-twitter.com",
   ]],
   ["美国", [
     // YouTube
