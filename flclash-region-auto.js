@@ -50,13 +50,15 @@ const DNS_CONFIG = {
   "direct-nameserver": ["https://223.5.5.5/dns-query"],
 };
 
-// 机场域名：不分地区，走订阅自带的自动选择组（没有则走脚本生成的全节点自动组）
+// 机场以及不登陆网站域名：不分地区，走订阅自带的自动选择组（没有则走脚本生成的全节点自动组）
 const AIRPORT_DOMAINS = [
   "feiniaoyun.xyz",
-  "happymao.cat.xyz",
+  "happymao.cat",
   "berrypass.de",
   "laogou.biz",
   "mitce.io",
+  "51cg1.com",
+  "91cg1.com",
 ];
 const GLOBAL_AUTO_NAME = "♻️ 全部-自动";
 
