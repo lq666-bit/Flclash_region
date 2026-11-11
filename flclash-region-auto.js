@@ -125,6 +125,8 @@ const TAIWAN_RULES = [
   "DOMAIN-SUFFIX,pscp.tv",
   "DOMAIN-SUFFIX,periscope.tv",
   "DOMAIN-SUFFIX,ads-twitter.com",
+
+  "DOMAIN-KEYWORD,github",
 ];
 
 // -------------------- 美国规则 --------------------
@@ -148,8 +150,6 @@ const US_RULES = [
   "DOMAIN-SUFFIX,stackoverflow.com",
   "DOMAIN-SUFFIX,stackexchange.com",
   "DOMAIN-SUFFIX,imgur.com",
-
-  "DOMAIN-KEYWORD,github",
 ];
 
 // -------------------- 工具函数 --------------------
