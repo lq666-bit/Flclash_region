@@ -70,6 +70,24 @@ const CUSTOM_RULES = [
     "DOMAIN-SUFFIX,claude.ai",
     "DOMAIN-SUFFIX,claude.com",
     "DOMAIN-SUFFIX,claudeusercontent.com",
+    // YouTube
+    "DOMAIN-SUFFIX,youtube.com",
+    "DOMAIN-SUFFIX,youtu.be",
+    "DOMAIN-SUFFIX,youtube-nocookie.com",
+    "DOMAIN-SUFFIX,googlevideo.com",
+    "DOMAIN-SUFFIX,ytimg.com",
+    "DOMAIN-SUFFIX,ggpht.com",
+    "DOMAIN-SUFFIX,yt.be",
+    // 不怎么需要登录的网站
+    "DOMAIN-SUFFIX,wikipedia.org",
+    "DOMAIN-SUFFIX,wikimedia.org",
+    "DOMAIN-SUFFIX,reddit.com",
+    "DOMAIN-SUFFIX,redd.it",
+    "DOMAIN-SUFFIX,redditmedia.com",
+    "DOMAIN-SUFFIX,redditstatic.com",
+    "DOMAIN-SUFFIX,stackoverflow.com",
+    "DOMAIN-SUFFIX,stackexchange.com",
+    "DOMAIN-SUFFIX,imgur.com",
   ]],
 ];
 
