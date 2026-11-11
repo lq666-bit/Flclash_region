@@ -1,6 +1,7 @@
 // FlClash 覆写脚本：按地区自动分组，每个地区一个 url-test 自动选择组
 // 自动选择时只在同地区节点之间测速/切换；没匹配到已知地区的节点按名称归入「其他」
 // 规则不改动，仍然指向订阅自带的手动选择组；脚本只是在这些手动组里加一个「🌍 地区选择」入口
+// 同时在脚本里直接写入 DNS 配置（请关闭 FlClash 里单独的 DNS 覆写）
 // 用法：FlClash -> 配置 -> 对应配置 -> 脚本 -> 粘贴本脚本
 
 const TEST_URL = "https://www.gstatic.com/generate_204";
@@ -36,10 +37,28 @@ const REGIONS = [
 // 非节点的信息条目（流量、到期、官网等）
 const INFO_NODE = /剩余流量|套餐到期|到期时间|距离下次|官网|订阅|流量|重置|过期|expire|traffic/i;
 
+// DNS 设置：对应 FlClash 里原来手动添加的 DNS
+const DNS_CONFIG = {
+  enable: true,
+  ipv6: false,
+  "enhanced-mode": "fake-ip",
+  "default-nameserver": ["223.5.5.5", "119.29.29.29", "8.8.8.8"],
+  "respect-rules":"cnm"
+  nameserver: ["https://1.1.1.1/dns-query", "https://8.8.8.8/dns-query"],
+  "proxy-server-nameserver": ["https://223.5.5.5/dns-query"], // 请改成你原来那 1 项的实际值
+  "direct-nameserver": ["https://223.5.5.5/dns-query"],
+};
+
 // 自定义分流：[地区显示名, 规则列表]。规则会放在整份规则的最前面，优先级最高
 // 只有对应地区的组存在（该地区有节点）时才会加入，避免指向不存在的组
 const CUSTOM_RULES = [
   ["台湾", [
+    // DNS 服务器固定出口（避免被订阅自带规则抢先命中）
+    "DOMAIN,dns.google",
+    "IP-CIDR,8.8.8.8/32,no-resolve",
+    "IP-CIDR,8.8.4.4/32,no-resolve",
+    "IP-CIDR,1.1.1.1/32,no-resolve",
+    "IP-CIDR,1.0.0.1/32,no-resolve",
     // Telegram
     "DOMAIN-SUFFIX,telegram.org",
     "DOMAIN-SUFFIX,telegram.me",
@@ -100,6 +119,9 @@ const matchRegion = (name) => {
 };
 
 const main = (config) => {
+  // 0. 写入 DNS 配置（放在最前面，即使后面没有节点也会生效）
+  config.dns = { ...(config.dns || {}), ...DNS_CONFIG };
+
   const proxies = (config.proxies || []).filter((p) => p && p.name && !INFO_NODE.test(p.name));
   if (proxies.length === 0) return config;
 
