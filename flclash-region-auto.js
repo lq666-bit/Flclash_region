@@ -2,10 +2,11 @@
 // 自动选择时只在同地区节点之间测速/切换；没匹配到已知地区的节点按名称归入「其他」
 // 规则不改动，仍然指向订阅自带的手动选择组；脚本只是在这些手动组里加一个「🌍 地区选择」入口
 // 同时在脚本里直接写入 DNS 配置（请关闭 FlClash 里单独的 DNS 覆写）
+// 机场域名走「不分地区」的自动选择：优先用订阅自带的 url-test 组，没有就用脚本生成的全节点自动组
 // 用法：FlClash -> 配置 -> 对应配置 -> 脚本 -> 粘贴本脚本
 
 const TEST_URL = "https://www.gstatic.com/generate_204";
-const INTERVAL = 300;   // 测速间隔（秒），只用于脚本生成的地区组
+const INTERVAL = 300;   // 测速间隔（秒），只用于脚本生成的组
 const TOLERANCE = 50;   // 延迟差小于该值不切换，避免来回跳
 
 // 已知地区：[显示名, 国旗, 匹配正则]
@@ -42,12 +43,22 @@ const DNS_CONFIG = {
   enable: true,
   ipv6: false,
   "enhanced-mode": "fake-ip",
-  "default-nameserver": ["223.5.5.5", "119.29.29.29", "8.8.8.8"],
   "respect-rules": true,
+  "default-nameserver": ["223.5.5.5", "119.29.29.29", "8.8.8.8"],
   nameserver: ["https://1.1.1.1/dns-query", "https://8.8.8.8/dns-query"],
   "proxy-server-nameserver": ["https://223.5.5.5/dns-query"], // 请改成你原来那 1 项的实际值
   "direct-nameserver": ["https://223.5.5.5/dns-query"],
 };
+
+// 机场域名：不分地区，走订阅自带的自动选择组（没有则走脚本生成的全节点自动组）
+const AIRPORT_DOMAINS = [
+  "feiniaoyun.xyz",
+  "happymao.cat.xyz",
+  "berrypass.de",
+  "laogou.biz",
+  "mitce.io",
+];
+const GLOBAL_AUTO_NAME = "♻️ 全部-自动";
 
 // 自定义分流：[地区显示名, 规则列表]。规则会放在整份规则的最前面，优先级最高
 // 只有对应地区的组存在（该地区有节点）时才会加入，避免指向不存在的组
@@ -76,8 +87,6 @@ const CUSTOM_RULES = [
     "IP-CIDR6,2001:b28:f23d::/48,no-resolve",
     "IP-CIDR6,2001:b28:f23f::/48,no-resolve",
     "IP-CIDR6,2001:67c:4e8::/48,no-resolve",
-  ]],
-  ["美国", [
     // OpenAI / ChatGPT
     "DOMAIN-SUFFIX,openai.com",
     "DOMAIN-SUFFIX,chatgpt.com",
@@ -89,6 +98,8 @@ const CUSTOM_RULES = [
     "DOMAIN-SUFFIX,claude.ai",
     "DOMAIN-SUFFIX,claude.com",
     "DOMAIN-SUFFIX,claudeusercontent.com",
+  ]],
+  ["美国", [
     // YouTube
     "DOMAIN-SUFFIX,youtube.com",
     "DOMAIN-SUFFIX,youtu.be",
@@ -142,6 +153,11 @@ const main = (config) => {
   const order = [...REGIONS.map((r) => r[0]), "其他"];
   const regions = [...buckets.keys()].sort((a, b) => order.indexOf(a) - order.indexOf(b));
 
+  // 先记下订阅自带的 url-test 组（在生成地区组之前，避免混进脚本生成的组）
+  const subAutoCandidates = groups.filter((g) => g.type === "url-test");
+  const subAuto =
+    subAutoCandidates.find((g) => /自动|auto/i.test(g.name)) || subAutoCandidates[0];
+
   for (const region of regions) {
     const { flag, names } = buckets.get(region);
     const groupName = `${flag} ${region}-自动`;
@@ -157,6 +173,24 @@ const main = (config) => {
       lazy: true,
     });
     existing.add(groupName);
+  }
+
+  // 2.5 机场用的「不分地区」自动组：订阅自带的优先，没有就生成一个包含全部节点的
+  let airportTarget = subAuto ? subAuto.name : null;
+  if (!airportTarget) {
+    airportTarget = GLOBAL_AUTO_NAME;
+    if (!existing.has(GLOBAL_AUTO_NAME)) {
+      groups.push({
+        name: GLOBAL_AUTO_NAME,
+        type: "url-test",
+        proxies: proxies.map((p) => p.name),
+        url: TEST_URL,
+        interval: INTERVAL,
+        tolerance: TOLERANCE,
+        lazy: true,
+      });
+      existing.add(GLOBAL_AUTO_NAME);
+    }
   }
 
   // 3. 「地区选择」手动组：里面只有各地区自动组和 DIRECT
@@ -190,6 +224,13 @@ const main = (config) => {
 
   // 6. 自定义分流规则：放在所有规则最前面
   const customRules = [];
+
+  // 6.1 机场域名 -> 不分地区的自动选择组
+  for (const d of AIRPORT_DOMAINS) {
+    customRules.push(`DOMAIN-SUFFIX,${d},${airportTarget}`);
+  }
+
+  // 6.2 按地区的自定义规则
   for (const [region, list] of CUSTOM_RULES) {
     const target = regionGroupNames.find((n) => n.endsWith(` ${region}-自动`));
     if (!target) continue;
