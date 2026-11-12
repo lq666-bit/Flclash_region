@@ -159,6 +159,10 @@ const TAIWAN_RULES = [
   "DOMAIN-SUFFIX,claude.com",             // Claude 官网
   "DOMAIN-SUFFIX,claudeusercontent.com",  // Claude 用户内容（制品等）
 
+  // ---- xAI / Grok ----
+  "DOMAIN-SUFFIX,grok.com",               // Grok 网页版
+  "DOMAIN-SUFFIX,x.ai",                   // xAI 官网/API（含 api.x.ai、accounts.x.ai）
+
   // ---- Twitter / X ----
   "DOMAIN-SUFFIX,twitter.com",            // Twitter
   "DOMAIN-SUFFIX,x.com",                  // X
