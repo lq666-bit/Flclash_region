@@ -57,103 +57,145 @@ const DNS_CONFIG = {
 
 const GLOBAL_AUTO_NAME = "♻️ 全部-自动";
 
-// -------------------- 机场规则 --------------------
+// -------------------- 自动测速规则 --------------------
+// 每条写完整规则：类型,内容（如 DOMAIN-SUFFIX,xxx.com / DOMAIN-KEYWORD,xxx / IP-CIDR,x.x.x.x/24,no-resolve）
 
-const AIRPORT_DOMAINS = [
-  "feiniaoyun.xyz",
-  "happymao.cat",
-  "berrypass.de",
-  "laogou.biz",
-  "mitce.io",
-  "51cg1.com",
-  "91cg1.com",
+const AUTO_RULES = [
+  // ---- 机场（订阅/面板域名） ----
+  "DOMAIN-SUFFIX,feiniaoyun.xyz",   // 机场：飞鸟云
+  "DOMAIN-SUFFIX,happymao.cat",     // 机场：happymao
+  "DOMAIN-SUFFIX,berrypass.de",     // 机场：BerryPass
+  "DOMAIN-SUFFIX,laogou.biz",       // 机场：老狗
+  "DOMAIN-SUFFIX,mitce.io",         // 机场：Mitce
+  "DOMAIN-SUFFIX,51cg1.com",        // 吃瓜网站域名
+  "DOMAIN-SUFFIX,91cg1.com",        // 吃瓜网站域名
+
+  // ---- Spotify（音乐） ----
+  "DOMAIN-SUFFIX,spotify.com",      // Spotify 主站/API
+  "DOMAIN-SUFFIX,scdn.co",          // Spotify 音频/图片 CDN
+  "DOMAIN-SUFFIX,spotifycdn.com",   // Spotify CDN
+  "DOMAIN-SUFFIX,spotifycdn.net",   // Spotify CDN
+  "DOMAIN-SUFFIX,spoti.fi",         // Spotify 分享短链
+  "DOMAIN-SUFFIX,pscdn.co",         // Spotify 播客/图片 CDN
+  "DOMAIN-SUFFIX,tospotify.com",    // Spotify 分享短链
+  "DOMAIN-SUFFIX,spotify.design",   // Spotify 设计站
+  "DOMAIN,audio-ak-spotify-com.akamaized.net", // Spotify 音频流（Akamai 节点）
 ];
 
 // -------------------- 台湾规则 --------------------
 
 const TAIWAN_RULES = [
-  "DOMAIN,dns.google",
-  "IP-CIDR,8.8.8.8/32,no-resolve",
-  "IP-CIDR,8.8.4.4/32,no-resolve",
-  "IP-CIDR,1.1.1.1/32,no-resolve",
-  "IP-CIDR,1.0.0.1/32,no-resolve",
+  // ---- 公共 DNS ----
+  "DOMAIN,dns.google",                    // Google 公共 DNS 域名
+  "IP-CIDR,8.8.8.8/32,no-resolve",        // Google 公共 DNS
+  "IP-CIDR,8.8.4.4/32,no-resolve",        // Google 公共 DNS
+  "IP-CIDR,1.1.1.1/32,no-resolve",        // Cloudflare 公共 DNS
+  "IP-CIDR,1.0.0.1/32,no-resolve",        // Cloudflare 公共 DNS
 
-  "DOMAIN-SUFFIX,google.com",
-  "DOMAIN-SUFFIX,googleapis.com",
-  "DOMAIN-SUFFIX,gstatic.com",
-  "DOMAIN-SUFFIX,googleusercontent.com",
-  "DOMAIN-SUFFIX,gmail.com",
-  "DOMAIN-SUFFIX,googlemail.com",
-  "DOMAIN-SUFFIX,gvt1.com",
-  "DOMAIN-SUFFIX,gvt2.com",
-  "DOMAIN-SUFFIX,android.com",
-  "DOMAIN-SUFFIX,withgoogle.com",
-  "DOMAIN-SUFFIX,google.com.hk",
-  "DOMAIN-SUFFIX,googleapis.cn",
+  // ---- Google ----
+  "DOMAIN-SUFFIX,google.com",             // Google 搜索/主站
+  "DOMAIN-SUFFIX,googleapis.com",         // Google API
+  "DOMAIN-SUFFIX,gstatic.com",            // Google 静态资源
+  "DOMAIN-SUFFIX,googleusercontent.com",  // Google 用户内容（头像、云端文件等）
+  "DOMAIN-SUFFIX,gmail.com",              // Gmail 邮箱
+  "DOMAIN-SUFFIX,googlemail.com",         // Gmail 旧域名
+  "DOMAIN-SUFFIX,gvt1.com",               // Google 更新下载（Chrome 等）
+  "DOMAIN-SUFFIX,gvt2.com",               // Google 更新下载
+  "DOMAIN-SUFFIX,android.com",            // Android 官网
+  "DOMAIN-SUFFIX,withgoogle.com",         // Google 产品介绍站
+  "DOMAIN-SUFFIX,google.com.hk",          // Google 香港
+  "DOMAIN-SUFFIX,googleapis.cn",          // Google API（中国）
 
-  "DOMAIN-SUFFIX,telegram.org",
-  "DOMAIN-SUFFIX,telegram.me",
-  "DOMAIN-SUFFIX,t.me",
-  "DOMAIN-SUFFIX,telegra.ph",
-  "DOMAIN-SUFFIX,telesco.pe",
-  "DOMAIN-SUFFIX,tdesktop.com",
-  "DOMAIN-SUFFIX,cdn-telegram.org",
-  "IP-CIDR,91.108.4.0/22,no-resolve",
-  "IP-CIDR,91.108.8.0/22,no-resolve",
-  "IP-CIDR,91.108.12.0/22,no-resolve",
-  "IP-CIDR,91.108.16.0/22,no-resolve",
-  "IP-CIDR,91.108.56.0/22,no-resolve",
-  "IP-CIDR,149.154.160.0/20,no-resolve",
-  "IP-CIDR6,2001:b28:f23d::/48,no-resolve",
-  "IP-CIDR6,2001:b28:f23f::/48,no-resolve",
-  "IP-CIDR6,2001:67c:4e8::/48,no-resolve",
+  // ---- Telegram ----
+  "DOMAIN-SUFFIX,telegram.org",           // Telegram 官网
+  "DOMAIN-SUFFIX,telegram.me",            // Telegram 链接
+  "DOMAIN-SUFFIX,t.me",                   // Telegram 短链
+  "DOMAIN-SUFFIX,telegra.ph",             // Telegraph 文章发布
+  "DOMAIN-SUFFIX,telesco.pe",             // Telescope 视频
+  "DOMAIN-SUFFIX,tdesktop.com",           // Telegram 桌面版
+  "DOMAIN-SUFFIX,cdn-telegram.org",       // Telegram CDN
+  "IP-CIDR,91.108.4.0/22,no-resolve",     // Telegram 服务器 IP 段
+  "IP-CIDR,91.108.8.0/22,no-resolve",     // Telegram 服务器 IP 段
+  "IP-CIDR,91.108.12.0/22,no-resolve",    // Telegram 服务器 IP 段
+  "IP-CIDR,91.108.16.0/22,no-resolve",    // Telegram 服务器 IP 段
+  "IP-CIDR,91.108.56.0/22,no-resolve",    // Telegram 服务器 IP 段
+  "IP-CIDR,149.154.160.0/20,no-resolve",  // Telegram 服务器 IP 段
+  "IP-CIDR6,2001:b28:f23d::/48,no-resolve", // Telegram IPv6 段
+  "IP-CIDR6,2001:b28:f23f::/48,no-resolve", // Telegram IPv6 段
+  "IP-CIDR6,2001:67c:4e8::/48,no-resolve",  // Telegram IPv6 段
 
-  "DOMAIN-SUFFIX,openai.com",
-  "DOMAIN-SUFFIX,chatgpt.com",
-  "DOMAIN-SUFFIX,oaistatic.com",
-  "DOMAIN-SUFFIX,oaiusercontent.com",
-  "DOMAIN-SUFFIX,sora.com",
+  // ---- OpenAI / ChatGPT ----
+  "DOMAIN-SUFFIX,openai.com",             // OpenAI 官网/API
+  "DOMAIN-SUFFIX,chatgpt.com",            // ChatGPT
+  "DOMAIN-SUFFIX,oaistatic.com",          // OpenAI 静态资源
+  "DOMAIN-SUFFIX,oaiusercontent.com",     // OpenAI 用户内容
+  "DOMAIN-SUFFIX,sora.com",               // Sora 视频生成
 
-  "DOMAIN-SUFFIX,anthropic.com",
-  "DOMAIN-SUFFIX,claude.ai",
-  "DOMAIN-SUFFIX,claude.com",
-  "DOMAIN-SUFFIX,claudeusercontent.com",
+  // ---- Anthropic / Claude ----
+  "DOMAIN-SUFFIX,anthropic.com",          // Anthropic 官网/API
+  "DOMAIN-SUFFIX,claude.ai",              // Claude 网页版
+  "DOMAIN-SUFFIX,claude.com",             // Claude 官网
+  "DOMAIN-SUFFIX,claudeusercontent.com",  // Claude 用户内容（制品等）
 
-  "DOMAIN-SUFFIX,twitter.com",
-  "DOMAIN-SUFFIX,x.com",
-  "DOMAIN-SUFFIX,t.co",
-  "DOMAIN-SUFFIX,twimg.com",
-  "DOMAIN-SUFFIX,twittercdn.com",
-  "DOMAIN-SUFFIX,twitterstat.us",
-  "DOMAIN-SUFFIX,abs.twimg.com",
-  "DOMAIN-SUFFIX,pscp.tv",
-  "DOMAIN-SUFFIX,periscope.tv",
-  "DOMAIN-SUFFIX,ads-twitter.com",
+  // ---- Twitter / X ----
+  "DOMAIN-SUFFIX,twitter.com",            // Twitter
+  "DOMAIN-SUFFIX,x.com",                  // X
+  "DOMAIN-SUFFIX,t.co",                   // Twitter 短链
+  "DOMAIN-SUFFIX,twimg.com",              // Twitter 图片/视频
+  "DOMAIN-SUFFIX,twittercdn.com",         // Twitter CDN
+  "DOMAIN-SUFFIX,twitterstat.us",         // Twitter 状态页
+  "DOMAIN-SUFFIX,abs.twimg.com",          // Twitter 静态资源
+  "DOMAIN-SUFFIX,pscp.tv",                // Periscope 直播
+  "DOMAIN-SUFFIX,periscope.tv",           // Periscope 直播
+  "DOMAIN-SUFFIX,ads-twitter.com",        // Twitter 广告
 
-  "DOMAIN-KEYWORD,github",
+  // ---- GitHub ----
+  "DOMAIN-KEYWORD,github",                // 所有含 github 的域名（GitHub、githubusercontent 等）
 ];
 
 // -------------------- 美国规则 --------------------
 
 const US_RULES = [
-  "DOMAIN-SUFFIX,youtube.com",
-  "DOMAIN-SUFFIX,youtu.be",
-  "DOMAIN-SUFFIX,youtube-nocookie.com",
-  "DOMAIN-SUFFIX,googlevideo.com",
-  "DOMAIN-SUFFIX,ytimg.com",
-  "DOMAIN-SUFFIX,ggpht.com",
-  "DOMAIN-SUFFIX,yt.be",
-  "DOMAIN-KEYWORD,youtubei",
+  // ---- YouTube ----
+  "DOMAIN-SUFFIX,youtube.com",            // YouTube 主站
+  "DOMAIN-SUFFIX,youtu.be",               // YouTube 短链
+  "DOMAIN-SUFFIX,youtube-nocookie.com",   // YouTube 免 Cookie 嵌入播放
+  "DOMAIN-SUFFIX,googlevideo.com",        // YouTube 视频流
+  "DOMAIN-SUFFIX,ytimg.com",              // YouTube 缩略图
+  "DOMAIN-SUFFIX,ggpht.com",              // YouTube/Google 头像图片
+  "DOMAIN-SUFFIX,yt.be",                  // YouTube 短链
+  "DOMAIN-KEYWORD,youtubei",              // YouTube 内部 API
 
-  "DOMAIN-SUFFIX,wikipedia.org",
-  "DOMAIN-SUFFIX,wikimedia.org",
-  "DOMAIN-SUFFIX,reddit.com",
-  "DOMAIN-SUFFIX,redd.it",
-  "DOMAIN-SUFFIX,redditmedia.com",
-  "DOMAIN-SUFFIX,redditstatic.com",
-  "DOMAIN-SUFFIX,stackoverflow.com",
-  "DOMAIN-SUFFIX,stackexchange.com",
-  "DOMAIN-SUFFIX,imgur.com",
+  // ---- 百科 / 社区 / 问答 / 图床 ----
+  "DOMAIN-SUFFIX,wikipedia.org",          // 维基百科
+  "DOMAIN-SUFFIX,wikimedia.org",          // 维基媒体（图片等）
+  "DOMAIN-SUFFIX,reddit.com",             // Reddit 论坛
+  "DOMAIN-SUFFIX,redd.it",                // Reddit 短链
+  "DOMAIN-SUFFIX,redditmedia.com",        // Reddit 图片/视频
+  "DOMAIN-SUFFIX,redditstatic.com",       // Reddit 静态资源
+  "DOMAIN-SUFFIX,stackoverflow.com",      // Stack Overflow 技术问答
+  "DOMAIN-SUFFIX,stackexchange.com",      // Stack Exchange 问答网络
+  "DOMAIN-SUFFIX,imgur.com",              // Imgur 图床
+
+  // ---- Instagram ----
+  "DOMAIN-SUFFIX,instagram.com",          // Instagram 主站
+  "DOMAIN-SUFFIX,cdninstagram.com",       // Instagram 图片/视频 CDN
+  "DOMAIN-SUFFIX,instagr.am",             // Instagram 短链
+  "DOMAIN-SUFFIX,ig.me",                  // Instagram 私信短链
+  "DOMAIN-SUFFIX,fbcdn.net",              // Meta 图片/视频 CDN（Instagram、Facebook 共用）
+
+  // ---- TikTok ----
+  "DOMAIN-SUFFIX,tiktok.com",             // TikTok 主站
+  "DOMAIN-SUFFIX,tiktokv.com",            // TikTok API
+  "DOMAIN-SUFFIX,tiktokv.us",             // TikTok 美国版 API
+  "DOMAIN-SUFFIX,tiktokcdn.com",          // TikTok CDN
+  "DOMAIN-SUFFIX,tiktokcdn-us.com",       // TikTok 美国版 CDN
+  "DOMAIN-SUFFIX,tiktokw.us",             // TikTok 美国版
+  "DOMAIN-SUFFIX,byteoversea.com",        // 字节跳动海外服务
+  "DOMAIN-SUFFIX,ibytedtos.com",          // 字节跳动海外对象存储
+  "DOMAIN-SUFFIX,ibyteimg.com",           // 字节跳动海外图片
+  "DOMAIN-SUFFIX,muscdn.com",             // musical.ly（TikTok 前身）CDN
+  "DOMAIN-SUFFIX,musical.ly",             // musical.ly（TikTok 前身）
 ];
 
 // -------------------- 工具函数 --------------------
@@ -357,25 +399,21 @@ const main = (config) => {
   const providerRules = [];
   const ruleSetEntries = [];
 
-  // 机场规则集
-  const airportPayload = uniqueRules(
-    AIRPORT_DOMAINS.map(
-      (d) => `DOMAIN-SUFFIX,${d}`
-    )
-  );
+  // 自动测速规则集（订阅自带自动组，没有则用全部-自动）
+  const autoPayload = uniqueRules(AUTO_RULES);
 
-  const airportProvider = "__flclash_script_airport";
+  const autoProvider = "__flclash_script_auto";
 
-  ruleProviders[airportProvider] = {
+  ruleProviders[autoProvider] = {
     type: "inline",
     behavior: "classical",
-    payload: airportPayload,
+    payload: autoPayload,
   };
 
-  providerRules.push(...airportPayload);
+  providerRules.push(...autoPayload);
 
   ruleSetEntries.push(
-    `RULE-SET,${airportProvider},${airportTarget}`
+    `RULE-SET,${autoProvider},${airportTarget}`
   );
 
   // 按优先级查找地区自动组，找不到就依次回退，最后回退到 🌍 地区选择
