@@ -95,7 +95,6 @@ const GLOBAL_AUTO_NAME = "♻️ 全部-自动";
 const APP_PROCESS_RULES = {
   "美国": [
     "li.songe.gkd",
-    "com.zhiliaoapp.musically",
     "com.google.android.youtube",
     "com.instagram.android",
     "com.ss.android.ugc.trill",
@@ -124,7 +123,7 @@ const APP_PROCESS_RULES = {
 };
 
 const APP_AUTO_RULES = [
-  "PROCESS-NAME,org.telegram.messenger.web",
+  "PROCESS-NAME,com.spotify.music",
 ];
 
 
