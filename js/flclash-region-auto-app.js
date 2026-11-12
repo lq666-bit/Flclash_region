@@ -1,6 +1,6 @@
 // ============================================================
 // FLClash 覆写脚本
-// 地区自动测速 + 内嵌规则集 + 精确规则优先覆盖
+// 地区自动测速 + 精确规则优先覆盖
 // ============================================================
 
 // ============================================================
@@ -22,7 +22,9 @@
 // 另：IP-CIDR 按目标 IP 网段匹配（不看域名），no-resolve 表示不为匹配而解析域名
 //    例：IP-CIDR,149.154.160.0/20,no-resolve
 //
-// 注意：每条规则必须写完整（类型,内容），只写裸域名会被脚本丢弃
+// 注意：
+// - 每条规则必须写完整（类型,内容），只写裸域名会被脚本丢弃
+// - 不支持 AND / OR / NOT 等组合规则（含多个逗号，会被切坏）
 // ============================================================
 
 const TEST_URL = "https://www.gstatic.com/generate_204";
@@ -90,7 +92,8 @@ const DNS_CONFIG = {
 const GLOBAL_AUTO_NAME = "♻️ 全部-自动";
 
 // -------------------- APP 包名分流规则 --------------------
-// 只填写包名，不需要写 PROCESS-NAME
+// key 是地区名，要和 RULE_SETS 里的 region 一致
+// 只填写包名，不需要写 PROCESS-NAME，脚本会自动转换
 
 const APP_PROCESS_RULES = {
   "美国": [
@@ -122,15 +125,13 @@ const APP_PROCESS_RULES = {
   // ],
 };
 
-const APP_AUTO_RULES = [
-  "PROCESS-NAME,com.spotify.music",
-];
-
-
 // -------------------- 自动测速规则 --------------------
 // 每条写完整规则：类型,内容（如 DOMAIN-SUFFIX,xxx.com / DOMAIN-KEYWORD,xxx / IP-CIDR,x.x.x.x/24,no-resolve）
 
 const AUTO_RULES = [
+  // ---- 指定 APP（走自动测速） ----
+  "PROCESS-NAME,com.spotify.music",
+
   // ---- 机场（订阅/面板域名） ----
   "DOMAIN-SUFFIX,feiniaoyun.xyz",   // 机场：飞鸟云
   "DOMAIN-SUFFIX,happymao.cat",     // 机场：happymao
@@ -163,6 +164,7 @@ const TAIWAN_RULES = [
   "IP-CIDR,1.0.0.1/32,no-resolve",        // Cloudflare 公共 DNS
 
   // ---- Google ----
+  // 已移除 google.com.hk、googleapis.cn：这两个本来就是为国内优化的，走代理反而可能更慢
   "DOMAIN-SUFFIX,google.com",             // Google 搜索/主站
   "DOMAIN-SUFFIX,googleapis.com",         // Google API
   "DOMAIN-SUFFIX,gstatic.com",            // Google 静态资源
@@ -173,8 +175,6 @@ const TAIWAN_RULES = [
   "DOMAIN-SUFFIX,gvt2.com",               // Google 更新下载
   "DOMAIN-SUFFIX,android.com",            // Android 官网
   "DOMAIN-SUFFIX,withgoogle.com",         // Google 产品介绍站
-  "DOMAIN-SUFFIX,google.com.hk",          // Google 香港
-  "DOMAIN-SUFFIX,googleapis.cn",          // Google API（中国）
 
   // ---- Telegram ----
   "DOMAIN-SUFFIX,telegram.org",           // Telegram 官网
@@ -212,13 +212,13 @@ const TAIWAN_RULES = [
   "DOMAIN-SUFFIX,x.ai",                   // xAI 官网/API（含 api.x.ai、accounts.x.ai）
 
   // ---- Twitter / X ----
+  // 已移除 abs.twimg.com：已被 twimg.com 的后缀匹配覆盖
   "DOMAIN-SUFFIX,twitter.com",            // Twitter
   "DOMAIN-SUFFIX,x.com",                  // X
   "DOMAIN-SUFFIX,t.co",                   // Twitter 短链
-  "DOMAIN-SUFFIX,twimg.com",              // Twitter 图片/视频
+  "DOMAIN-SUFFIX,twimg.com",              // Twitter 图片/视频/静态资源
   "DOMAIN-SUFFIX,twittercdn.com",         // Twitter CDN
   "DOMAIN-SUFFIX,twitterstat.us",         // Twitter 状态页
-  "DOMAIN-SUFFIX,abs.twimg.com",          // Twitter 静态资源
   "DOMAIN-SUFFIX,pscp.tv",                // Periscope 直播
   "DOMAIN-SUFFIX,periscope.tv",           // Periscope 直播
   "DOMAIN-SUFFIX,ads-twitter.com",        // Twitter 广告
@@ -281,21 +281,23 @@ const US_RULES = [
 
 // -------------------- 规则集清单 --------------------
 // 每个规则集：
-//   id        内部名（会生成 __flclash_script_<id>），不要重复
+//   id        内部名，不要重复
+//   region    对应的地区名，用来取 APP_PROCESS_RULES 里的包名（没有 APP 规则可不写）
 //   rules     规则列表
 //   fallback  出口地区的优先顺序：排前面的地区没有节点时，依次往后找；全都没有则走 🌍 地区选择
 //   useAuto   设为 true 表示出口走"自动测速组"（订阅自带的全节点自动组，没有则用 ♻️ 全部-自动），
 //             此时不需要 fallback
 //
 // 顺序即优先级（从上到下匹配，命中即停）：
+// - 所有 PROCESS-NAME（APP 包名）规则无论在哪个规则集，都会被提到全局最前面，
+//   其内部顺序按规则集顺序；之后才是各规则集的域名/IP 规则。
 // - 自动测速放最前面（机场、Spotify）。
 // - 美国必须在台湾前面，否则 youtubei.googleapis.com 会先被台湾的 googleapis.com 抢走。
 // 想新增规则集：写好一份规则常量，再在这里加一行即可。
 const RULE_SETS = [
   { id: "auto", rules: AUTO_RULES, useAuto: true },
-  { id: "app-auto", rules: APP_AUTO_RULES, useAuto: true },
-  { id: "us", rules: US_RULES, fallback: ["美国", "日本", "新加坡", "香港", "台湾"] },
-  { id: "taiwan", rules: TAIWAN_RULES, fallback: ["台湾", "日本", "新加坡", "香港"] },
+  { id: "us", region: "美国", rules: US_RULES, fallback: ["美国", "日本", "新加坡", "香港", "台湾"] },
+  { id: "taiwan", region: "台湾", rules: TAIWAN_RULES, fallback: ["台湾", "日本", "新加坡", "香港"] },
 ];
 
 // -------------------- 工具函数 --------------------
@@ -334,6 +336,22 @@ const uniqueRules = (rules) => {
   });
 };
 
+// 给规则补上出口：no-resolve 必须放在出口后面
+// "DOMAIN-SUFFIX,a.com"           -> "DOMAIN-SUFFIX,a.com,出口"
+// "IP-CIDR,1.1.1.1/32,no-resolve" -> "IP-CIDR,1.1.1.1/32,出口,no-resolve"
+const withTarget = (rule, target) => {
+  const parts = rule.split(",").map((s) => s.trim());
+  const last = parts[parts.length - 1];
+
+  if (parts.length > 2 && last.toLowerCase() === "no-resolve") {
+    parts.splice(parts.length - 1, 0, target);
+  } else {
+    parts.push(target);
+  }
+
+  return parts.join(",");
+};
+
 // -------------------- 主程序 --------------------
 
 const main = (config) => {
@@ -363,8 +381,8 @@ const main = (config) => {
   }
 
   const groups = config["proxy-groups"] || [];
-  const existing = new Set(groups.map((g) => g.name));
   const regionGroupNames = [];
+  const regionGroupMap = new Map(); // 地区名 -> 地区自动组名
 
   const order = [...REGIONS.map((r) => r[0]), "其他"];
 
@@ -410,6 +428,7 @@ const main = (config) => {
     const groupName = `${flag} ${region}-自动`;
 
     regionGroupNames.push(groupName);
+    regionGroupMap.set(region, groupName);
 
     let group = groups.find((g) => g.name === groupName);
 
@@ -428,8 +447,6 @@ const main = (config) => {
     group.interval = INTERVAL;
     group.tolerance = TOLERANCE;
     group.lazy = true;
-
-    existing.add(groupName);
   }
 
   // 4. 机场使用全节点自动测速组
@@ -440,9 +457,7 @@ const main = (config) => {
   if (!airportTarget) {
     airportTarget = GLOBAL_AUTO_NAME;
 
-    let group = groups.find(
-      (g) => g.name === GLOBAL_AUTO_NAME
-    );
+    let group = groups.find((g) => g.name === GLOBAL_AUTO_NAME);
 
     if (!group) {
       group = {
@@ -458,16 +473,12 @@ const main = (config) => {
     group.interval = INTERVAL;
     group.tolerance = TOLERANCE;
     group.lazy = true;
-
-    existing.add(GLOBAL_AUTO_NAME);
   }
 
   // 5. 地区选择组
   const pickName = "🌍 地区选择";
 
-  let pickGroup = groups.find(
-    (g) => g.name === pickName
-  );
+  let pickGroup = groups.find((g) => g.name === pickName);
 
   if (!pickGroup) {
     pickGroup = {
@@ -512,68 +523,56 @@ const main = (config) => {
   }
 
   // ==========================================================
-  // 8. 创建内嵌规则集
+  // 8. 生成脚本规则（直接展开成普通规则，不依赖 inline rule-provider，
+  //    旧版内核也能用）
   // ==========================================================
 
-  const ruleProviders = {
-    ...(config["rule-providers"] || {}),
-  };
-
-  const providerRules = [];
-  const ruleSetEntries = [];
-
-  // 按优先级查找地区自动组，找不到就依次回退，最后回退到 🌍 地区选择
+  // 按优先级查找地区自动组，找不到就依次回退
   const findAuto = (...regionList) => {
     for (const r of regionList) {
-      const n = regionGroupNames.find((x) => x.endsWith(` ${r}-自动`));
+      const n = regionGroupMap.get(r);
       if (n) return n;
     }
     return null;
   };
 
-  // 规则集：按 RULE_SETS 的顺序生成
-  // 出口：useAuto 的走自动测速组，其余按各自的 fallback 顺序找地区自动组
-  for (const { id, rules, fallback = [], useAuto } of RULE_SETS) {
+  const processScriptRules = []; // 所有 PROCESS-NAME 规则（全局最优先）
+  const domainScriptRules = [];  // 其余域名/IP 规则
+  const scriptKeys = new Set();  // 用于和订阅规则去重
+
+  for (const { region, rules, fallback = [], useAuto } of RULE_SETS) {
     const target = useAuto ? airportTarget : findAuto(...fallback) || pickName;
 
-    // 根据规则集 ID 获取对应国家的 APP 包名
-    const region = {
-      us: "美国",
-      taiwan: "台湾",
-    }[id];
+    // APP 包名自动转换成 PROCESS-NAME 规则
+    const processRules = ((region && APP_PROCESS_RULES[region]) || []).map(
+      (name) => `PROCESS-NAME,${name}`
+    );
 
-    // 自动转换成 PROCESS-NAME 规则
-    const processRules = (APP_PROCESS_RULES[region] || [])
-      .map(name => `PROCESS-NAME,${name}`);
+    const payload = uniqueRules([...processRules, ...rules]);
 
-    // APP 进程规则优先，原有域名/IP规则保持不变
-    const payload = uniqueRules([
-      ...processRules,
-      ...rules,
-    ]);
+    for (const rule of payload) {
+      const key = getRuleKey(rule);
 
-    const provider = `__flclash_script_${id}`;
+      // 跨规则集也去重：先出现的优先（和"顺序即优先级"一致）
+      if (scriptKeys.has(key)) continue;
+      scriptKeys.add(key);
 
-    ruleProviders[provider] = {
-      type: "inline",
-      behavior: "classical",
-      payload,
-    };
+      const full = withTarget(rule, target);
 
-    providerRules.push(...payload);
-
-    ruleSetEntries.push(`RULE-SET,${provider},${target}`);
+      if (key.startsWith("PROCESS-NAME,")) {
+        processScriptRules.push(full);
+      } else {
+        domainScriptRules.push(full);
+      }
+    }
   }
 
-  config["rule-providers"] = ruleProviders;
+  // 包名规则全局优先，其次才是各规则集的域名/IP 规则
+  const scriptRules = [...processScriptRules, ...domainScriptRules];
 
   // ==========================================================
   // 9. 精确去重：脚本规则优先
   // ==========================================================
-
-  const scriptKeys = new Set(
-    providerRules.map(getRuleKey).filter(Boolean)
-  );
 
   const originalRules = config.rules || [];
 
@@ -587,11 +586,8 @@ const main = (config) => {
     return !scriptKeys.has(key);
   });
 
-  // 规则集引用放在订阅原有规则之前
-  config.rules = [
-    ...ruleSetEntries,
-    ...filteredRules,
-  ];
+  // 脚本规则放在订阅原有规则之前
+  config.rules = [...scriptRules, ...filteredRules];
 
   // 10. 写回策略组
   config["proxy-groups"] = groups;
