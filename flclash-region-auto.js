@@ -1,4 +1,3 @@
-
 // ============================================================
 // FLClash 覆写脚本
 // 地区自动测速 + 内嵌规则集 + 精确规则优先覆盖
@@ -10,29 +9,34 @@ const TOLERANCE = 50;
 
 // -------------------- 地区识别 --------------------
 
+// words：中文名 / 英文全称 / emoji，直接匹配
+// abbrs：2~3 个字母的缩写，前后不能紧挨英文字母，避免 Premium 被当成 IN、Bonus 被当成 US
+const mk = (words, abbrs) =>
+  new RegExp(`${words}|(?:^|[^A-Za-z])(?:${abbrs})(?![A-Za-z])`, "i");
+
 const REGIONS = [
-  ["香港", "🇭🇰", /香港|港|HK|Hong\s?Kong|🇭🇰/i],
-  ["台湾", "🇹🇼", /台湾|台|TW|Taiwan|🇹🇼/i],
-  ["日本", "🇯🇵", /日本|JP|Japan|东京|大阪|🇯🇵/i],
-  ["新加坡", "🇸🇬", /新加坡|狮城|SG|Singapore|🇸🇬/i],
-  ["美国", "🇺🇸", /美国|US|USA|United\s?States|洛杉矶|圣何塞|西雅图|芝加哥|纽约|🇺🇸/i],
-  ["韩国", "🇰🇷", /韩国|韩|KR|Korea|首尔|🇰🇷/i],
-  ["英国", "🇬🇧", /英国|UK|GB|United\s?Kingdom|伦敦|🇬🇧/i],
-  ["德国", "🇩🇪", /德国|DE|Germany|法兰克福|🇩🇪/i],
-  ["法国", "🇫🇷", /法国|FR|France|巴黎|🇫🇷/i],
-  ["加拿大", "🇨🇦", /加拿大|CA|Canada|多伦多|温哥华|🇨🇦/i],
-  ["澳大利亚", "🇦🇺", /澳大利亚|澳洲|AU|Australia|悉尼|🇦🇺/i],
-  ["俄罗斯", "🇷🇺", /俄罗斯|俄|RU|Russia|🇷🇺/i],
-  ["印度", "🇮🇳", /印度|IN|India|孟买|🇮🇳/i],
-  ["土耳其", "🇹🇷", /土耳其|TR|Turkey|Türkiye|🇹🇷/i],
-  ["阿根廷", "🇦🇷", /阿根廷|AR|Argentina|🇦🇷/i],
-  ["巴西", "🇧🇷", /巴西|BR|Brazil|🇧🇷/i],
-  ["荷兰", "🇳🇱", /荷兰|NL|Netherlands|阿姆斯特丹|🇳🇱/i],
-  ["马来西亚", "🇲🇾", /马来西亚|马来|MY|Malaysia|🇲🇾/i],
-  ["泰国", "🇹🇭", /泰国|TH|Thailand|曼谷|🇹🇭/i],
-  ["越南", "🇻🇳", /越南|VN|Vietnam|🇻🇳/i],
-  ["菲律宾", "🇵🇭", /菲律宾|PH|Philippines|🇵🇭/i],
-  ["印度尼西亚", "🇮🇩", /印度尼西亚|印尼|ID|Indonesia|🇮🇩/i],
+  ["香港", "🇭🇰", mk("香港|港|Hong\\s?Kong|🇭🇰", "HK")],
+  ["台湾", "🇹🇼", mk("台湾|台|Taiwan|🇹🇼", "TW")],
+  ["日本", "🇯🇵", mk("日本|Japan|东京|大阪|🇯🇵", "JP")],
+  ["新加坡", "🇸🇬", mk("新加坡|狮城|Singapore|🇸🇬", "SG")],
+  ["美国", "🇺🇸", mk("美国|United\\s?States|洛杉矶|圣何塞|西雅图|芝加哥|纽约|🇺🇸", "US|USA")],
+  ["韩国", "🇰🇷", mk("韩国|韩|Korea|首尔|🇰🇷", "KR")],
+  ["英国", "🇬🇧", mk("英国|United\\s?Kingdom|伦敦|🇬🇧", "UK|GB")],
+  ["德国", "🇩🇪", mk("德国|Germany|法兰克福|🇩🇪", "DE")],
+  ["法国", "🇫🇷", mk("法国|France|巴黎|🇫🇷", "FR")],
+  ["加拿大", "🇨🇦", mk("加拿大|Canada|多伦多|温哥华|🇨🇦", "CA")],
+  ["澳大利亚", "🇦🇺", mk("澳大利亚|澳洲|Australia|悉尼|🇦🇺", "AU")],
+  ["俄罗斯", "🇷🇺", mk("俄罗斯|俄|Russia|🇷🇺", "RU")],
+  ["印度", "🇮🇳", mk("印度|India|孟买|🇮🇳", "IN")],
+  ["土耳其", "🇹🇷", mk("土耳其|Turkey|Türkiye|🇹🇷", "TR")],
+  ["阿根廷", "🇦🇷", mk("阿根廷|Argentina|🇦🇷", "AR")],
+  ["巴西", "🇧🇷", mk("巴西|Brazil|🇧🇷", "BR")],
+  ["荷兰", "🇳🇱", mk("荷兰|Netherlands|阿姆斯特丹|🇳🇱", "NL")],
+  ["马来西亚", "🇲🇾", mk("马来西亚|马来|Malaysia|🇲🇾", "MY")],
+  ["泰国", "🇹🇭", mk("泰国|Thailand|曼谷|🇹🇭", "TH")],
+  ["越南", "🇻🇳", mk("越南|Vietnam|🇻🇳", "VN")],
+  ["菲律宾", "🇵🇭", mk("菲律宾|Philippines|🇵🇭", "PH")],
+  ["印度尼西亚", "🇮🇩", mk("印度尼西亚|印尼|Indonesia|🇮🇩", "ID")],
 ];
 
 const INFO_NODE = /剩余流量|套餐到期|到期时间|距离下次|官网|订阅|流量|重置|过期|expire|traffic/i;
@@ -227,8 +231,9 @@ const main = (config) => {
   );
 
   // 2. 找订阅自带自动测速组
+  // 注意：必须排除脚本自己创建的全部-自动组，否则第二次运行会误判为"订阅自带"
   const subAutoCandidates = groups.filter(
-    (g) => g.type === "url-test"
+    (g) => g.type === "url-test" && g.name !== GLOBAL_AUTO_NAME
   );
 
   const subAuto =
@@ -264,7 +269,9 @@ const main = (config) => {
   }
 
   // 4. 机场使用全节点自动测速组
+  //    订阅没有自动选择组时，由脚本创建 GLOBAL_AUTO_NAME
   let airportTarget = subAuto ? subAuto.name : null;
+  const scriptCreatedAuto = !subAuto;
 
   if (!airportTarget) {
     airportTarget = GLOBAL_AUTO_NAME;
@@ -309,7 +316,9 @@ const main = (config) => {
   pickGroup.type = "select";
   pickGroup.proxies = [...regionGroupNames, "DIRECT"];
 
-  // 6. 订阅手动选择组增加地区选择入口
+  // 6. 订阅手动选择组增加入口
+  //    - 地区选择入口（始终添加，放第一位）
+  //    - 全部-自动入口（仅当订阅没有自动选择、由脚本创建了该组时添加，放在地区选择之后）
   for (const g of groups) {
     if (g.type !== "select" || g.name === pickName) continue;
 
@@ -317,6 +326,11 @@ const main = (config) => {
 
     if (!g.proxies.includes(pickName)) {
       g.proxies.unshift(pickName);
+    }
+
+    if (scriptCreatedAuto && !g.proxies.includes(GLOBAL_AUTO_NAME)) {
+      const idx = g.proxies.indexOf(pickName);
+      g.proxies.splice(idx + 1, 0, GLOBAL_AUTO_NAME);
     }
   }
 
@@ -364,10 +378,18 @@ const main = (config) => {
     `RULE-SET,${airportProvider},${airportTarget}`
   );
 
-  // 台湾规则集
-  const taiwanTarget = regionGroupNames.find(
-    (n) => n.endsWith(" 台湾-自动")
-  );
+  // 按优先级查找地区自动组，找不到就依次回退，最后回退到 🌍 地区选择
+  const findAuto = (...regionList) => {
+    for (const r of regionList) {
+      const n = regionGroupNames.find((x) => x.endsWith(` ${r}-自动`));
+      if (n) return n;
+    }
+    return null;
+  };
+
+  // 台湾规则集（回退：日本 → 新加坡 → 香港 → 地区选择）
+  const taiwanTarget =
+    findAuto("台湾", "日本", "新加坡", "香港") || pickName;
 
   if (taiwanTarget) {
     const payload = uniqueRules(TAIWAN_RULES);
@@ -386,10 +408,9 @@ const main = (config) => {
     );
   }
 
-  // 美国规则集
-  const usTarget = regionGroupNames.find(
-    (n) => n.endsWith(" 美国-自动")
-  );
+  // 美国规则集（回退：日本 → 新加坡 → 香港 → 台湾 → 地区选择）
+  const usTarget =
+    findAuto("美国", "日本", "新加坡", "香港", "台湾") || pickName;
 
   if (usTarget) {
     const payload = uniqueRules(US_RULES);
