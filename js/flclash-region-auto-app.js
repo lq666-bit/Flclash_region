@@ -98,6 +98,7 @@ const APP_PROCESS_RULES = {
     "com.zhiliaoapp.musically",
     "com.google.android.youtube",
     "com.instagram.android",
+    "com.ss.android.ugc.trill",
   ],
 
   "台湾": [
@@ -121,6 +122,10 @@ const APP_PROCESS_RULES = {
   //   "com.example.app",
   // ],
 };
+
+const APP_AUTO_RULES = [
+  "PROCESS-NAME,com.google.android.youtube",
+];
 
 
 // -------------------- 自动测速规则 --------------------
@@ -289,6 +294,7 @@ const US_RULES = [
 // 想新增规则集：写好一份规则常量，再在这里加一行即可。
 const RULE_SETS = [
   { id: "auto", rules: AUTO_RULES, useAuto: true },
+  { id: "app-auto", rules: APP_AUTO_RULES, useAuto: true },
   { id: "us", rules: US_RULES, fallback: ["美国", "日本", "新加坡", "香港", "台湾"] },
   { id: "taiwan", rules: TAIWAN_RULES, fallback: ["台湾", "日本", "新加坡", "香港"] },
 ];
