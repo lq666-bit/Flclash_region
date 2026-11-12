@@ -76,6 +76,7 @@ const APP_PROCESS_RULES = {
 
   "台湾": [
     "org.telegram.messenger",
+    "org.telegram.messenger.web",
     "org.thunderdog.challegram",
     "com.openai.chatgpt",
     "com.anthropic.claude",
