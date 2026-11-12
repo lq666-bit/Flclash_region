@@ -3,6 +3,28 @@
 // 地区自动测速 + 内嵌规则集 + 精确规则优先覆盖
 // ============================================================
 
+// ============================================================
+// 规则类型说明（下面各规则列表里的写法）
+//
+// 1. DOMAIN         全匹配：域名必须完全一样才命中
+//    例：DOMAIN,audio-ak-spotify-com.akamaized.net
+//        只命中这一个域名，子域名不算
+//
+// 2. DOMAIN-SUFFIX  域名后缀匹配：命中该域名及它的所有子域名（最常用）
+//    例：DOMAIN-SUFFIX,spotify.com
+//        命中 spotify.com、open.spotify.com、api.spotify.com
+//        不命中 myspotify.com
+//
+// 3. DOMAIN-KEYWORD 关键字匹配：域名里只要包含这个词就命中（范围最宽，慎用）
+//    例：DOMAIN-KEYWORD,github
+//        命中 github.com、raw.githubusercontent.com、github.io 等
+//
+// 另：IP-CIDR 按目标 IP 网段匹配（不看域名），no-resolve 表示不为匹配而解析域名
+//    例：IP-CIDR,149.154.160.0/20,no-resolve
+//
+// 注意：每条规则必须写完整（类型,内容），只写裸域名会被脚本丢弃
+// ============================================================
+
 const TEST_URL = "https://www.gstatic.com/generate_204";
 const INTERVAL = 300;
 const TOLERANCE = 50;
@@ -61,16 +83,14 @@ const GLOBAL_AUTO_NAME = "♻️ 全部-自动";
 // 每条写完整规则：类型,内容（如 DOMAIN-SUFFIX,xxx.com / DOMAIN-KEYWORD,xxx / IP-CIDR,x.x.x.x/24,no-resolve）
 
 const AUTO_RULES = [
-  // ---- 机场（订阅） ----
+  // ---- 机场（订阅/面板域名） ----
   "DOMAIN-SUFFIX,feiniaoyun.xyz",   // 机场：飞鸟云
   "DOMAIN-SUFFIX,happymao.cat",     // 机场：happymao
   "DOMAIN-SUFFIX,berrypass.de",     // 机场：BerryPass
   "DOMAIN-SUFFIX,laogou.biz",       // 机场：老狗
   "DOMAIN-SUFFIX,mitce.io",         // 机场：Mitce
-
-  // ---- 吃瓜（不登陆网站） ----
-  "DOMAIN-SUFFIX,51cg1.com",        // 吃瓜网站域名
-  "DOMAIN-SUFFIX,91cg1.com",        // 吃瓜网站域名
+  "DOMAIN-SUFFIX,51cg1.com",        // 机场域名
+  "DOMAIN-SUFFIX,91cg1.com",        // 机场域名
 
   // ---- Spotify（音乐） ----
   "DOMAIN-SUFFIX,spotify.com",      // Spotify 主站/API
@@ -427,26 +447,9 @@ const main = (config) => {
     return null;
   };
 
-  // 台湾规则集（回退：日本 → 新加坡 → 香港 → 地区选择）
-  const taiwanTarget =
-    findAuto("台湾", "日本", "新加坡", "香港") || pickName;
-
-  if (taiwanTarget) {
-    const payload = uniqueRules(TAIWAN_RULES);
-    const provider = "__flclash_script_taiwan";
-
-    ruleProviders[provider] = {
-      type: "inline",
-      behavior: "classical",
-      payload,
-    };
-
-    providerRules.push(...payload);
-
-    ruleSetEntries.push(
-      `RULE-SET,${provider},${taiwanTarget}`
-    );
-  }
+  // 注意：规则从上到下匹配，命中即停。
+  // 美国规则集必须放在台湾规则集前面，否则 youtubei.googleapis.com 会先被台湾的 googleapis.com 抢走。
+  // 以后如果美国和台湾有重叠的域名，想走美国的就靠这个顺序。
 
   // 美国规则集（回退：日本 → 新加坡 → 香港 → 台湾 → 地区选择）
   const usTarget =
@@ -466,6 +469,27 @@ const main = (config) => {
 
     ruleSetEntries.push(
       `RULE-SET,${provider},${usTarget}`
+    );
+  }
+
+  // 台湾规则集（回退：日本 → 新加坡 → 香港 → 地区选择）
+  const taiwanTarget =
+    findAuto("台湾", "日本", "新加坡", "香港") || pickName;
+
+  if (taiwanTarget) {
+    const payload = uniqueRules(TAIWAN_RULES);
+    const provider = "__flclash_script_taiwan";
+
+    ruleProviders[provider] = {
+      type: "inline",
+      behavior: "classical",
+      payload,
+    };
+
+    providerRules.push(...payload);
+
+    ruleSetEntries.push(
+      `RULE-SET,${provider},${taiwanTarget}`
     );
   }
 
