@@ -278,6 +278,8 @@ const US_RULES = [
   "DOMAIN-SUFFIX,ibyteimg.com",           // 字节跳动海外图片
   "DOMAIN-SUFFIX,muscdn.com",             // musical.ly（TikTok 前身）CDN
   "DOMAIN-SUFFIX,musical.ly",             // musical.ly（TikTok 前身）
+
+  "DOMAIN-SUFFIX,onlyfans.com",
 ];
 
 // -------------------- 规则集清单 --------------------
