@@ -242,13 +242,19 @@ const US_RULES = [
 ];
 
 // -------------------- 规则集清单 --------------------
-// 每个规则集：id（内部名）、rules（规则列表）、fallback（出口地区的优先顺序，
-// 排前面的地区没有节点时，依次往后找；全都没有则走 🌍 地区选择）
+// 每个规则集：
+//   id        内部名（会生成 __flclash_script_<id>），不要重复
+//   rules     规则列表
+//   fallback  出口地区的优先顺序：排前面的地区没有节点时，依次往后找；全都没有则走 🌍 地区选择
+//   useAuto   设为 true 表示出口走"自动测速组"（订阅自带的全节点自动组，没有则用 ♻️ 全部-自动），
+//             此时不需要 fallback
 //
 // 顺序即优先级（从上到下匹配，命中即停）：
-// 美国必须在台湾前面，否则 youtubei.googleapis.com 会先被台湾的 googleapis.com 抢走。
+// - 自动测速放最前面（机场、Spotify）。
+// - 美国必须在台湾前面，否则 youtubei.googleapis.com 会先被台湾的 googleapis.com 抢走。
 // 想新增规则集：写好一份规则常量，再在这里加一行即可。
 const RULE_SETS = [
+  { id: "auto", rules: AUTO_RULES, useAuto: true },
   { id: "us", rules: US_RULES, fallback: ["美国", "日本", "新加坡", "香港", "台湾"] },
   { id: "taiwan", rules: TAIWAN_RULES, fallback: ["台湾", "日本", "新加坡", "香港"] },
 ];
@@ -477,23 +483,6 @@ const main = (config) => {
   const providerRules = [];
   const ruleSetEntries = [];
 
-  // 自动测速规则集（订阅自带自动组，没有则用全部-自动）
-  const autoPayload = uniqueRules(AUTO_RULES);
-
-  const autoProvider = "__flclash_script_auto";
-
-  ruleProviders[autoProvider] = {
-    type: "inline",
-    behavior: "classical",
-    payload: autoPayload,
-  };
-
-  providerRules.push(...autoPayload);
-
-  ruleSetEntries.push(
-    `RULE-SET,${autoProvider},${airportTarget}`
-  );
-
   // 按优先级查找地区自动组，找不到就依次回退，最后回退到 🌍 地区选择
   const findAuto = (...regionList) => {
     for (const r of regionList) {
@@ -503,9 +492,10 @@ const main = (config) => {
     return null;
   };
 
-  // 地区规则集：按 RULE_SETS 的顺序生成，出口按各自的 fallback 顺序选
-  for (const { id, rules, fallback } of RULE_SETS) {
-    const target = findAuto(...fallback) || pickName;
+  // 规则集：按 RULE_SETS 的顺序生成
+  // 出口：useAuto 的走自动测速组，其余按各自的 fallback 顺序找地区自动组
+  for (const { id, rules, fallback = [], useAuto } of RULE_SETS) {
+    const target = useAuto ? airportTarget : findAuto(...fallback) || pickName;
     const payload = uniqueRules(rules);
     const provider = `__flclash_script_${id}`;
 
