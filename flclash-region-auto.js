@@ -61,12 +61,14 @@ const GLOBAL_AUTO_NAME = "♻️ 全部-自动";
 // 每条写完整规则：类型,内容（如 DOMAIN-SUFFIX,xxx.com / DOMAIN-KEYWORD,xxx / IP-CIDR,x.x.x.x/24,no-resolve）
 
 const AUTO_RULES = [
-  // ---- 机场（订阅/面板域名） ----
+  // ---- 机场（订阅） ----
   "DOMAIN-SUFFIX,feiniaoyun.xyz",   // 机场：飞鸟云
   "DOMAIN-SUFFIX,happymao.cat",     // 机场：happymao
   "DOMAIN-SUFFIX,berrypass.de",     // 机场：BerryPass
   "DOMAIN-SUFFIX,laogou.biz",       // 机场：老狗
   "DOMAIN-SUFFIX,mitce.io",         // 机场：Mitce
+
+  // ---- 吃瓜（不登陆网站） ----
   "DOMAIN-SUFFIX,51cg1.com",        // 吃瓜网站域名
   "DOMAIN-SUFFIX,91cg1.com",        // 吃瓜网站域名
 
