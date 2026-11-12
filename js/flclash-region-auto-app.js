@@ -124,7 +124,7 @@ const APP_PROCESS_RULES = {
 };
 
 const APP_AUTO_RULES = [
-  "PROCESS-NAME,com.google.android.youtube",
+  "PROCESS-NAME,org.telegram.messenger.web",
 ];
 
 
