@@ -1,7 +1,28 @@
-
 // ============================================================
 // FLClash 覆写脚本
-// 地区自动测速 + 内嵌规则集 + APP 包名分流 + 精确规则优先覆盖
+// 地区自动测速 + 内嵌规则集 + 精确规则优先覆盖
+// ============================================================
+
+// ============================================================
+// 规则类型说明（下面各规则列表里的写法）
+//
+// 1. DOMAIN         全匹配：域名必须完全一样才命中
+//    例：DOMAIN,audio-ak-spotify-com.akamaized.net
+//        只命中这一个域名，子域名不算
+//
+// 2. DOMAIN-SUFFIX  域名后缀匹配：命中该域名及它的所有子域名（最常用）
+//    例：DOMAIN-SUFFIX,spotify.com
+//        命中 spotify.com、open.spotify.com、api.spotify.com
+//        不命中 myspotify.com
+//
+// 3. DOMAIN-KEYWORD 关键字匹配：域名里只要包含这个词就命中（范围最宽，慎用）
+//    例：DOMAIN-KEYWORD,github
+//        命中 github.com、raw.githubusercontent.com、github.io 等
+//
+// 另：IP-CIDR 按目标 IP 网段匹配（不看域名），no-resolve 表示不为匹配而解析域名
+//    例：IP-CIDR,149.154.160.0/20,no-resolve
+//
+// 注意：每条规则必须写完整（类型,内容），只写裸域名会被脚本丢弃
 // ============================================================
 
 const TEST_URL = "https://www.gstatic.com/generate_204";
@@ -10,39 +31,54 @@ const TOLERANCE = 50;
 
 // -------------------- 地区识别 --------------------
 
+// words：中文名 / 英文全称 / emoji，直接匹配
+// abbrs：2~3 个字母的缩写，前后不能紧挨英文字母，避免 Premium 被当成 IN、Bonus 被当成 US
+// singles：单个汉字（港、台、韩、俄），前后不能紧挨其他汉字，避免"平台"、"中转台"被当成台湾
+const mk = (words, abbrs, singles = "") =>
+  new RegExp(
+    `${words}|(?:^|[^A-Za-z])(?:${abbrs})(?![A-Za-z])` +
+      (singles
+        ? `|(?:^|[^\\u4e00-\\u9fa5])(?:${singles})(?![\\u4e00-\\u9fa5])`
+        : ""),
+    "i"
+  );
+
 const REGIONS = [
-  ["香港", "🇭🇰", /香港|港|HK|Hong\s?Kong|🇭🇰/i],
-  ["台湾", "🇹🇼", /台湾|台|TW|Taiwan|🇹🇼/i],
-  ["日本", "🇯🇵", /日本|JP|Japan|东京|大阪|🇯🇵/i],
-  ["新加坡", "🇸🇬", /新加坡|狮城|SG|Singapore|🇸🇬/i],
-  ["美国", "🇺🇸", /美国|US|USA|United\s?States|洛杉矶|圣何塞|西雅图|芝加哥|纽约|🇺🇸/i],
-  ["韩国", "🇰🇷", /韩国|韩|KR|Korea|首尔|🇰🇷/i],
-  ["英国", "🇬🇧", /英国|UK|GB|United\s?Kingdom|伦敦|🇬🇧/i],
-  ["德国", "🇩🇪", /德国|DE|Germany|法兰克福|🇩🇪/i],
-  ["法国", "🇫🇷", /法国|FR|France|巴黎|🇫🇷/i],
-  ["加拿大", "🇨🇦", /加拿大|CA|Canada|多伦多|温哥华|🇨🇦/i],
-  ["澳大利亚", "🇦🇺", /澳大利亚|澳洲|AU|Australia|悉尼|🇦🇺/i],
-  ["俄罗斯", "🇷🇺", /俄罗斯|俄|RU|Russia|🇷🇺/i],
-  ["印度", "🇮🇳", /印度|IN|India|孟买|🇮🇳/i],
-  ["土耳其", "🇹🇷", /土耳其|TR|Turkey|Türkiye|🇹🇷/i],
-  ["阿根廷", "🇦🇷", /阿根廷|AR|Argentina|🇦🇷/i],
-  ["巴西", "🇧🇷", /巴西|BR|Brazil|🇧🇷/i],
-  ["荷兰", "🇳🇱", /荷兰|NL|Netherlands|阿姆斯特丹|🇳🇱/i],
-  ["马来西亚", "🇲🇾", /马来西亚|马来|MY|Malaysia|🇲🇾/i],
-  ["泰国", "🇹🇭", /泰国|TH|Thailand|曼谷|🇹🇭/i],
-  ["越南", "🇻🇳", /越南|VN|Vietnam|🇻🇳/i],
-  ["菲律宾", "🇵🇭", /菲律宾|PH|Philippines|🇵🇭/i],
-  ["印度尼西亚", "🇮🇩", /印度尼西亚|印尼|ID|Indonesia|🇮🇩/i],
+  ["香港", "🇭🇰", mk("香港|Hong\\s?Kong|🇭🇰", "HK", "港")],
+  ["台湾", "🇹🇼", mk("台湾|台北|新北|彰化|高雄|Taiwan|🇹🇼", "TW", "台")],
+  ["日本", "🇯🇵", mk("日本|Japan|东京|大阪|🇯🇵", "JP")],
+  ["新加坡", "🇸🇬", mk("新加坡|狮城|Singapore|🇸🇬", "SG")],
+  ["美国", "🇺🇸", mk("美国|United\\s?States|洛杉矶|圣何塞|西雅图|芝加哥|纽约|🇺🇸", "US|USA")],
+  ["韩国", "🇰🇷", mk("韩国|Korea|首尔|🇰🇷", "KR", "韩")],
+  ["英国", "🇬🇧", mk("英国|United\\s?Kingdom|伦敦|🇬🇧", "UK|GB")],
+  ["德国", "🇩🇪", mk("德国|Germany|法兰克福|🇩🇪", "DE")],
+  ["法国", "🇫🇷", mk("法国|France|巴黎|🇫🇷", "FR")],
+  ["加拿大", "🇨🇦", mk("加拿大|Canada|多伦多|温哥华|🇨🇦", "CA")],
+  ["澳大利亚", "🇦🇺", mk("澳大利亚|澳洲|Australia|悉尼|🇦🇺", "AU")],
+  ["俄罗斯", "🇷🇺", mk("俄罗斯|Russia|🇷🇺", "RU", "俄")],
+  ["印度", "🇮🇳", mk("印度|India|孟买|🇮🇳", "IN")],
+  ["土耳其", "🇹🇷", mk("土耳其|Turkey|Türkiye|🇹🇷", "TR")],
+  ["阿根廷", "🇦🇷", mk("阿根廷|Argentina|🇦🇷", "AR")],
+  ["巴西", "🇧🇷", mk("巴西|Brazil|🇧🇷", "BR")],
+  ["荷兰", "🇳🇱", mk("荷兰|Netherlands|阿姆斯特丹|🇳🇱", "NL")],
+  ["马来西亚", "🇲🇾", mk("马来西亚|马来|Malaysia|🇲🇾", "MY")],
+  ["泰国", "🇹🇭", mk("泰国|Thailand|曼谷|🇹🇭", "TH")],
+  ["越南", "🇻🇳", mk("越南|Vietnam|🇻🇳", "VN")],
+  ["菲律宾", "🇵🇭", mk("菲律宾|Philippines|🇵🇭", "PH")],
+  ["印度尼西亚", "🇮🇩", mk("印度尼西亚|印尼|Indonesia|🇮🇩", "ID")],
 ];
 
-const INFO_NODE = /剩余流量|套餐到期|到期时间|距离下次|官网|订阅|流量|重置|过期|expire|traffic/i;
+// 订阅里的"信息节点"（剩余流量、到期时间等），不是真节点，要排除
+// 只匹配典型写法，避免"高速流量不限"之类的真节点名被误删
+const INFO_NODE =
+  /剩余|已用|套餐|到期|距离下次|重置|过期|官网\s*[:：]|订阅\s*[:：]|流量\s*[:：]|(?:expire|traffic|reset)\s*[:：]/i;
 
 const DNS_CONFIG = {
   enable: true,
   ipv6: false,
   "enhanced-mode": "fake-ip",
   "respect-rules": true,
-  "default-nameserver": ["223.5.5.5", "119.29.29.119", "8.8.8.8"],
+  "default-nameserver": ["223.5.5.5", "119.29.29.29", "8.8.8.8"],
   nameserver: [
     "https://1.1.1.1/dns-query",
     "https://8.8.8.8/dns-query"
@@ -53,18 +89,8 @@ const DNS_CONFIG = {
 
 const GLOBAL_AUTO_NAME = "♻️ 全部-自动";
 
-// ============================================================
-// APP 包名分流规则
-//
-// 使用方法：
-// 国家名称: ["Android 包名"]
-//
-// 例如：
-// "日本": ["com.example.app"]
-//
-// 只需要填写包名，不需要写 PROCESS-NAME。
-// 程序会自动转换并合并进对应国家的规则集。
-// ============================================================
+// -------------------- APP 包名分流规则 --------------------
+// 只填写包名，不需要写 PROCESS-NAME
 
 const APP_PROCESS_RULES = {
   "美国": [
@@ -76,7 +102,6 @@ const APP_PROCESS_RULES = {
 
   "台湾": [
     "org.telegram.messenger",
-    "org.telegram.messenger.web",
     "org.thunderdog.challegram",
     "com.openai.chatgpt",
     "com.anthropic.claude",
@@ -91,129 +116,182 @@ const APP_PROCESS_RULES = {
     "com.google.android.apps.authenticator2",
   ],
 
-  // 以后新增国家时，在这里继续添加即可。
+  // 以后增加日本 APP：
   // "日本": [
   //   "com.example.app",
   // ],
-
-  // "新加坡": [
-  //   "com.example.anotherapp",
-  // ],
 };
 
-// -------------------- 机场规则 --------------------
 
-const AIRPORT_DOMAINS = [
-  "feiniaoyun.xyz",
-  "happymao.cat",
-  "berrypass.de",
-  "laogou.biz",
-  "mitce.io",
-  "51cg1.com",
-  "91cg1.com",
+// -------------------- 自动测速规则 --------------------
+// 每条写完整规则：类型,内容（如 DOMAIN-SUFFIX,xxx.com / DOMAIN-KEYWORD,xxx / IP-CIDR,x.x.x.x/24,no-resolve）
+
+const AUTO_RULES = [
+  // ---- 机场（订阅/面板域名） ----
+  "DOMAIN-SUFFIX,feiniaoyun.xyz",   // 机场：飞鸟云
+  "DOMAIN-SUFFIX,happymao.cat",     // 机场：happymao
+  "DOMAIN-SUFFIX,berrypass.de",     // 机场：BerryPass
+  "DOMAIN-SUFFIX,laogou.biz",       // 机场：老狗
+  "DOMAIN-SUFFIX,mitce.io",         // 机场：Mitce
+  "DOMAIN-SUFFIX,51cg1.com",        // 机场域名
+  "DOMAIN-SUFFIX,91cg1.com",        // 机场域名
+
+  // ---- Spotify（音乐） ----
+  "DOMAIN-SUFFIX,spotify.com",      // Spotify 主站/API
+  "DOMAIN-SUFFIX,scdn.co",          // Spotify 音频/图片 CDN
+  "DOMAIN-SUFFIX,spotifycdn.com",   // Spotify CDN
+  "DOMAIN-SUFFIX,spotifycdn.net",   // Spotify CDN
+  "DOMAIN-SUFFIX,spoti.fi",         // Spotify 分享短链
+  "DOMAIN-SUFFIX,pscdn.co",         // Spotify 播客/图片 CDN
+  "DOMAIN-SUFFIX,tospotify.com",    // Spotify 分享短链
+  "DOMAIN-SUFFIX,spotify.design",   // Spotify 设计站
+  "DOMAIN,audio-ak-spotify-com.akamaized.net", // Spotify 音频流（Akamai 节点）
 ];
 
-// -------------------- 台湾域名/IP规则 --------------------
+// -------------------- 台湾规则 --------------------
 
 const TAIWAN_RULES = [
-  "DOMAIN,dns.google",
-  "IP-CIDR,8.8.8.8/32,no-resolve",
-  "IP-CIDR,8.8.4.4/32,no-resolve",
-  "IP-CIDR,1.1.1.1/32,no-resolve",
-  "IP-CIDR,1.0.0.1/32,no-resolve",
+  // ---- 公共 DNS ----
+  "DOMAIN,dns.google",                    // Google 公共 DNS 域名
+  "IP-CIDR,8.8.8.8/32,no-resolve",        // Google 公共 DNS
+  "IP-CIDR,8.8.4.4/32,no-resolve",        // Google 公共 DNS
+  "IP-CIDR,1.1.1.1/32,no-resolve",        // Cloudflare 公共 DNS
+  "IP-CIDR,1.0.0.1/32,no-resolve",        // Cloudflare 公共 DNS
 
-  "DOMAIN-SUFFIX,google.com",
-  "DOMAIN-SUFFIX,googleapis.com",
-  "DOMAIN-SUFFIX,gstatic.com",
-  "DOMAIN-SUFFIX,googleusercontent.com",
-  "DOMAIN-SUFFIX,gmail.com",
-  "DOMAIN-SUFFIX,googlemail.com",
-  "DOMAIN-SUFFIX,gvt1.com",
-  "DOMAIN-SUFFIX,gvt2.com",
-  "DOMAIN-SUFFIX,android.com",
-  "DOMAIN-SUFFIX,withgoogle.com",
-  "DOMAIN-SUFFIX,google.com.hk",
-  "DOMAIN-SUFFIX,googleapis.cn",
+  // ---- Google ----
+  "DOMAIN-SUFFIX,google.com",             // Google 搜索/主站
+  "DOMAIN-SUFFIX,googleapis.com",         // Google API
+  "DOMAIN-SUFFIX,gstatic.com",            // Google 静态资源
+  "DOMAIN-SUFFIX,googleusercontent.com",  // Google 用户内容（头像、云端文件等）
+  "DOMAIN-SUFFIX,gmail.com",              // Gmail 邮箱
+  "DOMAIN-SUFFIX,googlemail.com",         // Gmail 旧域名
+  "DOMAIN-SUFFIX,gvt1.com",               // Google 更新下载（Chrome 等）
+  "DOMAIN-SUFFIX,gvt2.com",               // Google 更新下载
+  "DOMAIN-SUFFIX,android.com",            // Android 官网
+  "DOMAIN-SUFFIX,withgoogle.com",         // Google 产品介绍站
+  "DOMAIN-SUFFIX,google.com.hk",          // Google 香港
+  "DOMAIN-SUFFIX,googleapis.cn",          // Google API（中国）
 
-  "DOMAIN-SUFFIX,telegram.org",
-  "DOMAIN-SUFFIX,telegram.me",
-  "DOMAIN-SUFFIX,t.me",
-  "DOMAIN-SUFFIX,telegra.ph",
-  "DOMAIN-SUFFIX,telesco.pe",
-  "DOMAIN-SUFFIX,tdesktop.com",
-  "DOMAIN-SUFFIX,cdn-telegram.org",
-  "IP-CIDR,91.108.4.0/22,no-resolve",
-  "IP-CIDR,91.108.8.0/22,no-resolve",
-  "IP-CIDR,91.108.12.0/22,no-resolve",
-  "IP-CIDR,91.108.16.0/22,no-resolve",
-  "IP-CIDR,91.108.56.0/22,no-resolve",
-  "IP-CIDR,149.154.160.0/20,no-resolve",
-  "IP-CIDR6,2001:b28:f23d::/48,no-resolve",
-  "IP-CIDR6,2001:b28:f23f::/48,no-resolve",
-  "IP-CIDR6,2001:67c:4e8::/48,no-resolve",
+  // ---- Telegram ----
+  "DOMAIN-SUFFIX,telegram.org",           // Telegram 官网
+  "DOMAIN-SUFFIX,telegram.me",            // Telegram 链接
+  "DOMAIN-SUFFIX,t.me",                   // Telegram 短链
+  "DOMAIN-SUFFIX,telegra.ph",             // Telegraph 文章发布
+  "DOMAIN-SUFFIX,telesco.pe",             // Telescope 视频
+  "DOMAIN-SUFFIX,tdesktop.com",           // Telegram 桌面版
+  "DOMAIN-SUFFIX,cdn-telegram.org",       // Telegram CDN
+  "IP-CIDR,91.108.4.0/22,no-resolve",     // Telegram 服务器 IP 段
+  "IP-CIDR,91.108.8.0/22,no-resolve",     // Telegram 服务器 IP 段
+  "IP-CIDR,91.108.12.0/22,no-resolve",    // Telegram 服务器 IP 段
+  "IP-CIDR,91.108.16.0/22,no-resolve",    // Telegram 服务器 IP 段
+  "IP-CIDR,91.108.56.0/22,no-resolve",    // Telegram 服务器 IP 段
+  "IP-CIDR,149.154.160.0/20,no-resolve",  // Telegram 服务器 IP 段
+  "IP-CIDR6,2001:b28:f23d::/48,no-resolve", // Telegram IPv6 段
+  "IP-CIDR6,2001:b28:f23f::/48,no-resolve", // Telegram IPv6 段
+  "IP-CIDR6,2001:67c:4e8::/48,no-resolve",  // Telegram IPv6 段
 
-  "DOMAIN-SUFFIX,openai.com",
-  "DOMAIN-SUFFIX,chatgpt.com",
-  "DOMAIN-SUFFIX,oaistatic.com",
-  "DOMAIN-SUFFIX,oaiusercontent.com",
-  "DOMAIN-SUFFIX,sora.com",
+  // ---- OpenAI / ChatGPT ----
+  "DOMAIN-SUFFIX,openai.com",             // OpenAI 官网/API
+  "DOMAIN-SUFFIX,chatgpt.com",            // ChatGPT
+  "DOMAIN-SUFFIX,oaistatic.com",          // OpenAI 静态资源
+  "DOMAIN-SUFFIX,oaiusercontent.com",     // OpenAI 用户内容
+  "DOMAIN-SUFFIX,sora.com",               // Sora 视频生成
 
-  "DOMAIN-SUFFIX,anthropic.com",
-  "DOMAIN-SUFFIX,claude.ai",
-  "DOMAIN-SUFFIX,claude.com",
-  "DOMAIN-SUFFIX,claudeusercontent.com",
+  // ---- Anthropic / Claude ----
+  "DOMAIN-SUFFIX,anthropic.com",          // Anthropic 官网/API
+  "DOMAIN-SUFFIX,claude.ai",              // Claude 网页版
+  "DOMAIN-SUFFIX,claude.com",             // Claude 官网
+  "DOMAIN-SUFFIX,claudeusercontent.com",  // Claude 用户内容（制品等）
 
-  "DOMAIN-SUFFIX,twitter.com",
-  "DOMAIN-SUFFIX,x.com",
-  "DOMAIN-SUFFIX,t.co",
-  "DOMAIN-SUFFIX,twimg.com",
-  "DOMAIN-SUFFIX,twittercdn.com",
-  "DOMAIN-SUFFIX,twitterstat.us",
-  "DOMAIN-SUFFIX,abs.twimg.com",
-  "DOMAIN-SUFFIX,pscp.tv",
-  "DOMAIN-SUFFIX,periscope.tv",
-  "DOMAIN-SUFFIX,ads-twitter.com",
+  // ---- xAI / Grok ----
+  "DOMAIN-SUFFIX,grok.com",               // Grok 网页版
+  "DOMAIN-SUFFIX,x.ai",                   // xAI 官网/API（含 api.x.ai、accounts.x.ai）
+
+  // ---- Twitter / X ----
+  "DOMAIN-SUFFIX,twitter.com",            // Twitter
+  "DOMAIN-SUFFIX,x.com",                  // X
+  "DOMAIN-SUFFIX,t.co",                   // Twitter 短链
+  "DOMAIN-SUFFIX,twimg.com",              // Twitter 图片/视频
+  "DOMAIN-SUFFIX,twittercdn.com",         // Twitter CDN
+  "DOMAIN-SUFFIX,twitterstat.us",         // Twitter 状态页
+  "DOMAIN-SUFFIX,abs.twimg.com",          // Twitter 静态资源
+  "DOMAIN-SUFFIX,pscp.tv",                // Periscope 直播
+  "DOMAIN-SUFFIX,periscope.tv",           // Periscope 直播
+  "DOMAIN-SUFFIX,ads-twitter.com",        // Twitter 广告
+
+  // ---- GitHub ----
+  "DOMAIN-SUFFIX,github.com",             // GitHub 主站
+  "DOMAIN-SUFFIX,github.io",              // GitHub Pages 个人站点
+  "DOMAIN-SUFFIX,github.dev",             // GitHub 在线编辑器
+  "DOMAIN-SUFFIX,githubusercontent.com",  // GitHub 原始文件、头像、附件
+  "DOMAIN-SUFFIX,githubassets.com",       // GitHub 静态资源
+  "DOMAIN-SUFFIX,githubapp.com",          // GitHub 应用服务
+  "DOMAIN-SUFFIX,ghcr.io",                // GitHub 容器镜像仓库
+  "DOMAIN-SUFFIX,git.io",                 // GitHub 短链
 ];
 
-// -------------------- 美国域名/IP规则 --------------------
+// -------------------- 美国规则 --------------------
 
 const US_RULES = [
-  "DOMAIN-SUFFIX,youtube.com",
-  "DOMAIN-SUFFIX,youtu.be",
-  "DOMAIN-SUFFIX,youtube-nocookie.com",
-  "DOMAIN-SUFFIX,googlevideo.com",
-  "DOMAIN-SUFFIX,ytimg.com",
-  "DOMAIN-SUFFIX,ggpht.com",
-  "DOMAIN-SUFFIX,yt.be",
-  "DOMAIN-KEYWORD,youtubei",
+  // ---- YouTube ----
+  "DOMAIN-SUFFIX,youtube.com",            // YouTube 主站
+  "DOMAIN-SUFFIX,youtu.be",               // YouTube 短链
+  "DOMAIN-SUFFIX,youtube-nocookie.com",   // YouTube 免 Cookie 嵌入播放
+  "DOMAIN-SUFFIX,googlevideo.com",        // YouTube 视频流
+  "DOMAIN-SUFFIX,ytimg.com",              // YouTube 缩略图
+  "DOMAIN-SUFFIX,ggpht.com",              // YouTube/Google 头像图片
+  "DOMAIN-SUFFIX,yt.be",                  // YouTube 短链
+  "DOMAIN-KEYWORD,youtubei",              // YouTube 内部 API
 
-  "DOMAIN-SUFFIX,wikipedia.org",
-  "DOMAIN-SUFFIX,wikimedia.org",
-  "DOMAIN-SUFFIX,reddit.com",
-  "DOMAIN-SUFFIX,redd.it",
-  "DOMAIN-SUFFIX,redditmedia.com",
-  "DOMAIN-SUFFIX,redditstatic.com",
-  "DOMAIN-SUFFIX,stackoverflow.com",
-  "DOMAIN-SUFFIX,stackexchange.com",
-  "DOMAIN-SUFFIX,imgur.com",
+  // ---- 百科 / 社区 / 问答 / 图床 ----
+  "DOMAIN-SUFFIX,wikipedia.org",          // 维基百科
+  "DOMAIN-SUFFIX,wikimedia.org",          // 维基媒体（图片等）
+  "DOMAIN-SUFFIX,reddit.com",             // Reddit 论坛
+  "DOMAIN-SUFFIX,redd.it",                // Reddit 短链
+  "DOMAIN-SUFFIX,redditmedia.com",        // Reddit 图片/视频
+  "DOMAIN-SUFFIX,redditstatic.com",       // Reddit 静态资源
+  "DOMAIN-SUFFIX,stackoverflow.com",      // Stack Overflow 技术问答
+  "DOMAIN-SUFFIX,stackexchange.com",      // Stack Exchange 问答网络
+  "DOMAIN-SUFFIX,imgur.com",              // Imgur 图床
+
+  // ---- Instagram ----
+  "DOMAIN-SUFFIX,instagram.com",          // Instagram 主站
+  "DOMAIN-SUFFIX,cdninstagram.com",       // Instagram 图片/视频 CDN
+  "DOMAIN-SUFFIX,instagr.am",             // Instagram 短链
+  "DOMAIN-SUFFIX,ig.me",                  // Instagram 私信短链
+  "DOMAIN-SUFFIX,fbcdn.net",              // Meta 图片/视频 CDN（Instagram、Facebook 共用）
+
+  // ---- TikTok ----
+  "DOMAIN-SUFFIX,tiktok.com",             // TikTok 主站
+  "DOMAIN-SUFFIX,tiktokv.com",            // TikTok API
+  "DOMAIN-SUFFIX,tiktokv.us",             // TikTok 美国版 API
+  "DOMAIN-SUFFIX,tiktokcdn.com",          // TikTok CDN
+  "DOMAIN-SUFFIX,tiktokcdn-us.com",       // TikTok 美国版 CDN
+  "DOMAIN-SUFFIX,tiktokw.us",             // TikTok 美国版
+  "DOMAIN-SUFFIX,byteoversea.com",        // 字节跳动海外服务
+  "DOMAIN-SUFFIX,ibytedtos.com",          // 字节跳动海外对象存储
+  "DOMAIN-SUFFIX,ibyteimg.com",           // 字节跳动海外图片
+  "DOMAIN-SUFFIX,muscdn.com",             // musical.ly（TikTok 前身）CDN
+  "DOMAIN-SUFFIX,musical.ly",             // musical.ly（TikTok 前身）
 ];
 
-// ============================================================
-// 国家域名/IP规则映射
+// -------------------- 规则集清单 --------------------
+// 每个规则集：
+//   id        内部名（会生成 __flclash_script_<id>），不要重复
+//   rules     规则列表
+//   fallback  出口地区的优先顺序：排前面的地区没有节点时，依次往后找；全都没有则走 🌍 地区选择
+//   useAuto   设为 true 表示出口走"自动测速组"（订阅自带的全节点自动组，没有则用 ♻️ 全部-自动），
+//             此时不需要 fallback
 //
-// 以后要给其他国家增加域名规则，也在这里添加。
-// 即使某个国家暂时没有域名规则，也可以只配置 APP 包名。
-// ============================================================
-
-const REGION_DOMAIN_RULES = {
-  "美国": US_RULES,
-  "台湾": TAIWAN_RULES,
-
-  // 示例：
-  // "日本": [
-  //   "DOMAIN-SUFFIX,example.jp",
-  // ],
-};
+// 顺序即优先级（从上到下匹配，命中即停）：
+// - 自动测速放最前面（机场、Spotify）。
+// - 美国必须在台湾前面，否则 youtubei.googleapis.com 会先被台湾的 googleapis.com 抢走。
+// 想新增规则集：写好一份规则常量，再在这里加一行即可。
+const RULE_SETS = [
+  { id: "auto", rules: AUTO_RULES, useAuto: true },
+  { id: "us", rules: US_RULES, fallback: ["美国", "日本", "新加坡", "香港", "台湾"] },
+  { id: "taiwan", rules: TAIWAN_RULES, fallback: ["台湾", "日本", "新加坡", "香港"] },
+];
 
 // -------------------- 工具函数 --------------------
 
@@ -254,10 +332,7 @@ const uniqueRules = (rules) => {
 // -------------------- 主程序 --------------------
 
 const main = (config) => {
-  // 0. 进程识别模式
-  config["find-process-mode"] = "always";
-
-  // 1. DNS 配置
+  // 0. DNS 配置
   config.dns = {
     ...(config.dns || {}),
     ...DNS_CONFIG,
@@ -269,11 +344,12 @@ const main = (config) => {
 
   if (proxies.length === 0) return config;
 
-  // 2. 节点地区分类
+  // 1. 节点地区分类
   const buckets = new Map();
 
   for (const p of proxies) {
     const { region, flag } = matchRegion(p.name);
+
     if (!buckets.has(region)) {
       buckets.set(region, { flag, names: [] });
     }
@@ -291,16 +367,39 @@ const main = (config) => {
     (a, b) => order.indexOf(a) - order.indexOf(b)
   );
 
-  // 3. 找订阅自带自动测速组
-  const subAutoCandidates = groups.filter(
-    (g) => g.type === "url-test"
-  );
+  // 2. 找订阅自带的"全节点"自动测速组
+  //    只认覆盖了绝大多数节点的 url-test 组，避免误选到单个地区的自动组
+  //    （比如订阅自带的"香港自动"，否则机场和 Spotify 会只走香港）
+  //    排除：脚本自己的全部-自动、脚本会创建/覆盖的地区自动组
+  const proxyNameSet = new Set(proxies.map((p) => p.name));
 
-  const subAuto =
-    subAutoCandidates.find((g) => /自动|auto/i.test(g.name)) ||
-    subAutoCandidates[0];
+  const scriptGroupNames = new Set([
+    GLOBAL_AUTO_NAME,
+    ...[...buckets.entries()].map(
+      ([region, { flag }]) => `${flag} ${region}-自动`
+    ),
+  ]);
 
-  // 4. 创建或更新地区自动测速组
+  // 一个组实际包含多少个有效节点
+  const coverage = (g) => {
+    if (!Array.isArray(g.proxies) || g.proxies.length === 0) {
+      // 用 use 引用外部订阅且没有 filter，视为包含全部节点
+      return g.use && !g.filter ? proxies.length : 0;
+    }
+    return g.proxies.filter((n) => proxyNameSet.has(n)).length;
+  };
+
+  const FULL_COVERAGE = 0.8; // 至少覆盖 80% 的节点才算"全节点"组
+
+  const subAutoCandidates = groups
+    .filter((g) => g.type === "url-test" && !scriptGroupNames.has(g.name))
+    .map((g) => ({ g, n: coverage(g), named: /自动|auto/i.test(g.name) }))
+    .filter((x) => x.n >= proxies.length * FULL_COVERAGE)
+    .sort((x, y) => y.n - x.n || Number(y.named) - Number(x.named));
+
+  const subAuto = subAutoCandidates.length ? subAutoCandidates[0].g : null;
+
+  // 3. 创建或更新地区自动测速组
   for (const region of regions) {
     const { flag, names } = buckets.get(region);
     const groupName = `${flag} ${region}-自动`;
@@ -328,8 +427,10 @@ const main = (config) => {
     existing.add(groupName);
   }
 
-  // 5. 机场使用全节点自动测速组
+  // 4. 机场使用全节点自动测速组
+  //    订阅没有自动选择组时，由脚本创建 GLOBAL_AUTO_NAME
   let airportTarget = subAuto ? subAuto.name : null;
+  const scriptCreatedAuto = !subAuto;
 
   if (!airportTarget) {
     airportTarget = GLOBAL_AUTO_NAME;
@@ -337,6 +438,7 @@ const main = (config) => {
     let group = groups.find(
       (g) => g.name === GLOBAL_AUTO_NAME
     );
+
     if (!group) {
       group = {
         name: GLOBAL_AUTO_NAME,
@@ -355,12 +457,13 @@ const main = (config) => {
     existing.add(GLOBAL_AUTO_NAME);
   }
 
-  // 6. 地区选择组
+  // 5. 地区选择组
   const pickName = "🌍 地区选择";
 
   let pickGroup = groups.find(
     (g) => g.name === pickName
   );
+
   if (!pickGroup) {
     pickGroup = {
       name: pickName,
@@ -372,18 +475,26 @@ const main = (config) => {
   pickGroup.type = "select";
   pickGroup.proxies = [...regionGroupNames, "DIRECT"];
 
-  // 7. 订阅手动选择组增加地区选择入口
+  // 6. 订阅手动选择组增加入口
+  //    select 组默认选中的是第一项，所以入口不能插在第一位，否则会改掉订阅原来的默认选择
+  //    - 地区选择入口：放在第二位（原有第一项保持不变）
+  //    - 全部-自动入口（仅当订阅没有全节点自动组、由脚本创建了该组时添加）：放在地区选择之后
   for (const g of groups) {
     if (g.type !== "select" || g.name === pickName) continue;
 
     g.proxies = g.proxies || [];
 
     if (!g.proxies.includes(pickName)) {
-      g.proxies.unshift(pickName);
+      g.proxies.splice(Math.min(1, g.proxies.length), 0, pickName);
+    }
+
+    if (scriptCreatedAuto && !g.proxies.includes(GLOBAL_AUTO_NAME)) {
+      const idx = g.proxies.indexOf(pickName);
+      g.proxies.splice(idx + 1, 0, GLOBAL_AUTO_NAME);
     }
   }
 
-  // 8. 订阅自动类组开启懒测速
+  // 7. 订阅自动类组开启懒测速
   for (const g of groups) {
     if (!["url-test", "fallback", "load-balance"].includes(g.type)) {
       continue;
@@ -396,7 +507,7 @@ const main = (config) => {
   }
 
   // ==========================================================
-  // 9. 创建内嵌规则集
+  // 8. 创建内嵌规则集
   // ==========================================================
 
   const ruleProviders = {
@@ -406,92 +517,37 @@ const main = (config) => {
   const providerRules = [];
   const ruleSetEntries = [];
 
-  // 9.1 机场规则集
-  const airportPayload = uniqueRules(
-    AIRPORT_DOMAINS.map(
-      (d) => `DOMAIN-SUFFIX,${d}`
-    )
-  );
-
-  const airportProvider = "__flclash_script_airport";
-
-  ruleProviders[airportProvider] = {
-    type: "inline",
-    behavior: "classical",
-    payload: airportPayload,
+  // 按优先级查找地区自动组，找不到就依次回退，最后回退到 🌍 地区选择
+  const findAuto = (...regionList) => {
+    for (const r of regionList) {
+      const n = regionGroupNames.find((x) => x.endsWith(` ${r}-自动`));
+      if (n) return n;
+    }
+    return null;
   };
 
-  providerRules.push(...airportPayload);
+  // 规则集：按 RULE_SETS 的顺序生成
+  // 出口：useAuto 的走自动测速组，其余按各自的 fallback 顺序找地区自动组
+  for (const { id, rules, fallback = [], useAuto } of RULE_SETS) {
+    const target = useAuto ? airportTarget : findAuto(...fallback) || pickName;
 
-  ruleSetEntries.push(
-    `RULE-SET,${airportProvider},${airportTarget}`
-  );
+    // 根据规则集 ID 获取对应国家的 APP 包名
+    const region = {
+      us: "美国",
+      taiwan: "台湾",
+    }[id];
 
-  // ==========================================================
-  // 9.2 各国家规则集统一循环
-  //
-  // 自动合并：
-  // APP_PROCESS_RULES 中的包名规则
-  // +
-  // REGION_DOMAIN_RULES 中的域名/IP规则
-  //
-  // PROCESS-NAME 放在域名/IP规则之前。
-  // ==========================================================
-
-  const regionRuleNames = [
-    ...new Set([
-      ...Object.keys(REGION_DOMAIN_RULES),
-      ...Object.keys(APP_PROCESS_RULES),
-    ]),
-  ];
-
-  // 美国规则集排在台湾前面，避免 YouTube 相关域名
-  // 被台湾 Google 域名规则提前匹配。
-  regionRuleNames.sort((a, b) => {
-    const priority = ["美国", "台湾"];
-    const ai = priority.indexOf(a);
-    const bi = priority.indexOf(b);
-
-    if (ai !== -1 || bi !== -1) {
-      if (ai === -1) return 1;
-      if (bi === -1) return -1;
-      return ai - bi;
-    }
-
-    return order.indexOf(a) - order.indexOf(b);
-  });
-
-  for (const region of regionRuleNames) {
-    // 找到该国家对应的自动测速组
-    const target = regionGroupNames.find(
-      (n) => n.endsWith(` ${region}-自动`)
-    );
-
-    // 没有该国家节点，就不创建该国家规则集
-    if (!target) continue;
-
-    // APP 包名自动转换为 PROCESS-NAME 规则
+    // 自动转换成 PROCESS-NAME 规则
     const processRules = (APP_PROCESS_RULES[region] || [])
-      .filter((name) => typeof name === "string" && name.trim())
-      .map((name) => `PROCESS-NAME,${name.trim()}`);
+      .map(name => `PROCESS-NAME,${name}`);
 
-    // 获取该国家原有域名/IP规则
-    const domainRules = REGION_DOMAIN_RULES[region] || [];
-
-    // 进程规则优先，域名/IP规则随后
+    // APP 进程规则优先，原有域名/IP规则保持不变
     const payload = uniqueRules([
       ...processRules,
-      ...domainRules,
+      ...rules,
     ]);
 
-    if (payload.length === 0) continue;
-
-    // 使用地区在 REGIONS 中的固定序号生成稳定 ID
-    const regionIndex = REGIONS.findIndex(
-      (item) => item[0] === region
-    );
-
-    const provider = `__flclash_script_region_${regionIndex}`;
+    const provider = `__flclash_script_${id}`;
 
     ruleProviders[provider] = {
       type: "inline",
@@ -501,15 +557,13 @@ const main = (config) => {
 
     providerRules.push(...payload);
 
-    ruleSetEntries.push(
-      `RULE-SET,${provider},${target}`
-    );
+    ruleSetEntries.push(`RULE-SET,${provider},${target}`);
   }
 
   config["rule-providers"] = ruleProviders;
 
   // ==========================================================
-  // 10. 精确去重：脚本规则优先
+  // 9. 精确去重：脚本规则优先
   // ==========================================================
 
   const scriptKeys = new Set(
@@ -534,7 +588,7 @@ const main = (config) => {
     ...filteredRules,
   ];
 
-  // 11. 写回策略组
+  // 10. 写回策略组
   config["proxy-groups"] = groups;
 
   return config;
