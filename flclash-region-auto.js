@@ -429,20 +429,6 @@ const main = (config) => {
     );
   }
 
-  // 去广告规则集（引用社区维护的 anti-AD 列表），放在所有规则集最前面
-  const adProvider = "__flclash_script_ads";
-
-  ruleProviders[adProvider] = {
-    type: "http",
-    behavior: "domain",
-    format: "yaml",
-    url: "https://anti-ad.net/clash.yaml",
-    path: "./ruleset/anti-ad.yaml",
-    interval: 86400,
-  };
-
-  ruleSetEntries.unshift(`RULE-SET,${adProvider},REJECT-DROP`);
-
   config["rule-providers"] = ruleProviders;
 
   // ==========================================================
