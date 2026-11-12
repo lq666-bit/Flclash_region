@@ -33,22 +33,29 @@ const TOLERANCE = 50;
 
 // words：中文名 / 英文全称 / emoji，直接匹配
 // abbrs：2~3 个字母的缩写，前后不能紧挨英文字母，避免 Premium 被当成 IN、Bonus 被当成 US
-const mk = (words, abbrs) =>
-  new RegExp(`${words}|(?:^|[^A-Za-z])(?:${abbrs})(?![A-Za-z])`, "i");
+// singles：单个汉字（港、台、韩、俄），前后不能紧挨其他汉字，避免"平台"、"中转台"被当成台湾
+const mk = (words, abbrs, singles = "") =>
+  new RegExp(
+    `${words}|(?:^|[^A-Za-z])(?:${abbrs})(?![A-Za-z])` +
+      (singles
+        ? `|(?:^|[^\\u4e00-\\u9fa5])(?:${singles})(?![\\u4e00-\\u9fa5])`
+        : ""),
+    "i"
+  );
 
 const REGIONS = [
-  ["香港", "🇭🇰", mk("香港|港|Hong\\s?Kong|🇭🇰", "HK")],
-  ["台湾", "🇹🇼", mk("台湾|台|Taiwan|🇹🇼", "TW")],
+  ["香港", "🇭🇰", mk("香港|Hong\\s?Kong|🇭🇰", "HK", "港")],
+  ["台湾", "🇹🇼", mk("台湾|台北|新北|彰化|高雄|Taiwan|🇹🇼", "TW", "台")],
   ["日本", "🇯🇵", mk("日本|Japan|东京|大阪|🇯🇵", "JP")],
   ["新加坡", "🇸🇬", mk("新加坡|狮城|Singapore|🇸🇬", "SG")],
   ["美国", "🇺🇸", mk("美国|United\\s?States|洛杉矶|圣何塞|西雅图|芝加哥|纽约|🇺🇸", "US|USA")],
-  ["韩国", "🇰🇷", mk("韩国|韩|Korea|首尔|🇰🇷", "KR")],
+  ["韩国", "🇰🇷", mk("韩国|Korea|首尔|🇰🇷", "KR", "韩")],
   ["英国", "🇬🇧", mk("英国|United\\s?Kingdom|伦敦|🇬🇧", "UK|GB")],
   ["德国", "🇩🇪", mk("德国|Germany|法兰克福|🇩🇪", "DE")],
   ["法国", "🇫🇷", mk("法国|France|巴黎|🇫🇷", "FR")],
   ["加拿大", "🇨🇦", mk("加拿大|Canada|多伦多|温哥华|🇨🇦", "CA")],
   ["澳大利亚", "🇦🇺", mk("澳大利亚|澳洲|Australia|悉尼|🇦🇺", "AU")],
-  ["俄罗斯", "🇷🇺", mk("俄罗斯|俄|Russia|🇷🇺", "RU")],
+  ["俄罗斯", "🇷🇺", mk("俄罗斯|Russia|🇷🇺", "RU", "俄")],
   ["印度", "🇮🇳", mk("印度|India|孟买|🇮🇳", "IN")],
   ["土耳其", "🇹🇷", mk("土耳其|Turkey|Türkiye|🇹🇷", "TR")],
   ["阿根廷", "🇦🇷", mk("阿根廷|Argentina|🇦🇷", "AR")],
@@ -61,7 +68,10 @@ const REGIONS = [
   ["印度尼西亚", "🇮🇩", mk("印度尼西亚|印尼|Indonesia|🇮🇩", "ID")],
 ];
 
-const INFO_NODE = /剩余流量|套餐到期|到期时间|距离下次|官网|订阅|流量|重置|过期|expire|traffic/i;
+// 订阅里的"信息节点"（剩余流量、到期时间等），不是真节点，要排除
+// 只匹配典型写法，避免"高速流量不限"之类的真节点名被误删
+const INFO_NODE =
+  /剩余|已用|套餐|到期|距离下次|重置|过期|官网\s*[:：]|订阅\s*[:：]|流量\s*[:：]|(?:expire|traffic|reset)\s*[:：]/i;
 
 const DNS_CONFIG = {
   enable: true,
@@ -176,7 +186,14 @@ const TAIWAN_RULES = [
   "DOMAIN-SUFFIX,ads-twitter.com",        // Twitter 广告
 
   // ---- GitHub ----
-  "DOMAIN-KEYWORD,github",                // 所有含 github 的域名（GitHub、githubusercontent 等）
+  "DOMAIN-SUFFIX,github.com",             // GitHub 主站
+  "DOMAIN-SUFFIX,github.io",              // GitHub Pages 个人站点
+  "DOMAIN-SUFFIX,github.dev",             // GitHub 在线编辑器
+  "DOMAIN-SUFFIX,githubusercontent.com",  // GitHub 原始文件、头像、附件
+  "DOMAIN-SUFFIX,githubassets.com",       // GitHub 静态资源
+  "DOMAIN-SUFFIX,githubapp.com",          // GitHub 应用服务
+  "DOMAIN-SUFFIX,ghcr.io",                // GitHub 容器镜像仓库
+  "DOMAIN-SUFFIX,git.io",                 // GitHub 短链
 ];
 
 // -------------------- 美国规则 --------------------
@@ -222,6 +239,18 @@ const US_RULES = [
   "DOMAIN-SUFFIX,ibyteimg.com",           // 字节跳动海外图片
   "DOMAIN-SUFFIX,muscdn.com",             // musical.ly（TikTok 前身）CDN
   "DOMAIN-SUFFIX,musical.ly",             // musical.ly（TikTok 前身）
+];
+
+// -------------------- 规则集清单 --------------------
+// 每个规则集：id（内部名）、rules（规则列表）、fallback（出口地区的优先顺序，
+// 排前面的地区没有节点时，依次往后找；全都没有则走 🌍 地区选择）
+//
+// 顺序即优先级（从上到下匹配，命中即停）：
+// 美国必须在台湾前面，否则 youtubei.googleapis.com 会先被台湾的 googleapis.com 抢走。
+// 想新增规则集：写好一份规则常量，再在这里加一行即可。
+const RULE_SETS = [
+  { id: "us", rules: US_RULES, fallback: ["美国", "日本", "新加坡", "香港", "台湾"] },
+  { id: "taiwan", rules: TAIWAN_RULES, fallback: ["台湾", "日本", "新加坡", "香港"] },
 ];
 
 // -------------------- 工具函数 --------------------
@@ -298,15 +327,37 @@ const main = (config) => {
     (a, b) => order.indexOf(a) - order.indexOf(b)
   );
 
-  // 2. 找订阅自带自动测速组
-  // 注意：必须排除脚本自己创建的全部-自动组，否则第二次运行会误判为"订阅自带"
-  const subAutoCandidates = groups.filter(
-    (g) => g.type === "url-test" && g.name !== GLOBAL_AUTO_NAME
-  );
+  // 2. 找订阅自带的"全节点"自动测速组
+  //    只认覆盖了绝大多数节点的 url-test 组，避免误选到单个地区的自动组
+  //    （比如订阅自带的"香港自动"，否则机场和 Spotify 会只走香港）
+  //    排除：脚本自己的全部-自动、脚本会创建/覆盖的地区自动组
+  const proxyNameSet = new Set(proxies.map((p) => p.name));
 
-  const subAuto =
-    subAutoCandidates.find((g) => /自动|auto/i.test(g.name)) ||
-    subAutoCandidates[0];
+  const scriptGroupNames = new Set([
+    GLOBAL_AUTO_NAME,
+    ...[...buckets.entries()].map(
+      ([region, { flag }]) => `${flag} ${region}-自动`
+    ),
+  ]);
+
+  // 一个组实际包含多少个有效节点
+  const coverage = (g) => {
+    if (!Array.isArray(g.proxies) || g.proxies.length === 0) {
+      // 用 use 引用外部订阅且没有 filter，视为包含全部节点
+      return g.use && !g.filter ? proxies.length : 0;
+    }
+    return g.proxies.filter((n) => proxyNameSet.has(n)).length;
+  };
+
+  const FULL_COVERAGE = 0.8; // 至少覆盖 80% 的节点才算"全节点"组
+
+  const subAutoCandidates = groups
+    .filter((g) => g.type === "url-test" && !scriptGroupNames.has(g.name))
+    .map((g) => ({ g, n: coverage(g), named: /自动|auto/i.test(g.name) }))
+    .filter((x) => x.n >= proxies.length * FULL_COVERAGE)
+    .sort((x, y) => y.n - x.n || Number(y.named) - Number(x.named));
+
+  const subAuto = subAutoCandidates.length ? subAutoCandidates[0].g : null;
 
   // 3. 创建或更新地区自动测速组
   for (const region of regions) {
@@ -385,15 +436,16 @@ const main = (config) => {
   pickGroup.proxies = [...regionGroupNames, "DIRECT"];
 
   // 6. 订阅手动选择组增加入口
-  //    - 地区选择入口（始终添加，放第一位）
-  //    - 全部-自动入口（仅当订阅没有自动选择、由脚本创建了该组时添加，放在地区选择之后）
+  //    select 组默认选中的是第一项，所以入口不能插在第一位，否则会改掉订阅原来的默认选择
+  //    - 地区选择入口：放在第二位（原有第一项保持不变）
+  //    - 全部-自动入口（仅当订阅没有全节点自动组、由脚本创建了该组时添加）：放在地区选择之后
   for (const g of groups) {
     if (g.type !== "select" || g.name === pickName) continue;
 
     g.proxies = g.proxies || [];
 
     if (!g.proxies.includes(pickName)) {
-      g.proxies.unshift(pickName);
+      g.proxies.splice(Math.min(1, g.proxies.length), 0, pickName);
     }
 
     if (scriptCreatedAuto && !g.proxies.includes(GLOBAL_AUTO_NAME)) {
@@ -451,17 +503,11 @@ const main = (config) => {
     return null;
   };
 
-  // 注意：规则从上到下匹配，命中即停。
-  // 美国规则集必须放在台湾规则集前面，否则 youtubei.googleapis.com 会先被台湾的 googleapis.com 抢走。
-  // 以后如果美国和台湾有重叠的域名，想走美国的就靠这个顺序。
-
-  // 美国规则集（回退：日本 → 新加坡 → 香港 → 台湾 → 地区选择）
-  const usTarget =
-    findAuto("美国", "日本", "新加坡", "香港", "台湾") || pickName;
-
-  if (usTarget) {
-    const payload = uniqueRules(US_RULES);
-    const provider = "__flclash_script_us";
+  // 地区规则集：按 RULE_SETS 的顺序生成，出口按各自的 fallback 顺序选
+  for (const { id, rules, fallback } of RULE_SETS) {
+    const target = findAuto(...fallback) || pickName;
+    const payload = uniqueRules(rules);
+    const provider = `__flclash_script_${id}`;
 
     ruleProviders[provider] = {
       type: "inline",
@@ -471,30 +517,7 @@ const main = (config) => {
 
     providerRules.push(...payload);
 
-    ruleSetEntries.push(
-      `RULE-SET,${provider},${usTarget}`
-    );
-  }
-
-  // 台湾规则集（回退：日本 → 新加坡 → 香港 → 地区选择）
-  const taiwanTarget =
-    findAuto("台湾", "日本", "新加坡", "香港") || pickName;
-
-  if (taiwanTarget) {
-    const payload = uniqueRules(TAIWAN_RULES);
-    const provider = "__flclash_script_taiwan";
-
-    ruleProviders[provider] = {
-      type: "inline",
-      behavior: "classical",
-      payload,
-    };
-
-    providerRules.push(...payload);
-
-    ruleSetEntries.push(
-      `RULE-SET,${provider},${taiwanTarget}`
-    );
+    ruleSetEntries.push(`RULE-SET,${provider},${target}`);
   }
 
   config["rule-providers"] = ruleProviders;
