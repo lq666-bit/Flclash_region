@@ -101,13 +101,13 @@ const APP_PROCESS_RULES = {
     "com.google.android.youtube",
     "com.instagram.android",
     "com.ss.android.ugc.trill",
+    "com.openai.chatgpt",
   ],
 
   "台湾": [
     "org.telegram.messenger",
     "org.telegram.messenger.web",
     "org.thunderdog.challegram",
-    "com.openai.chatgpt",
     "com.anthropic.claude",
     "ai.x.grok",
     "com.github.android",
