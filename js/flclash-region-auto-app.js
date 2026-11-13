@@ -195,13 +195,6 @@ const TAIWAN_RULES = [
   "IP-CIDR6,2001:b28:f23f::/48,no-resolve", // Telegram IPv6 段
   "IP-CIDR6,2001:67c:4e8::/48,no-resolve",  // Telegram IPv6 段
 
-  // ---- OpenAI / ChatGPT ----
-  "DOMAIN-SUFFIX,openai.com",             // OpenAI 官网/API
-  "DOMAIN-SUFFIX,chatgpt.com",            // ChatGPT
-  "DOMAIN-SUFFIX,oaistatic.com",          // OpenAI 静态资源
-  "DOMAIN-SUFFIX,oaiusercontent.com",     // OpenAI 用户内容
-  "DOMAIN-SUFFIX,sora.com",               // Sora 视频生成
-
   // ---- Anthropic / Claude ----
   "DOMAIN-SUFFIX,anthropic.com",          // Anthropic 官网/API
   "DOMAIN-SUFFIX,claude.ai",              // Claude 网页版
@@ -280,6 +273,14 @@ const US_RULES = [
   "DOMAIN-SUFFIX,musical.ly",             // musical.ly（TikTok 前身）
 
   "DOMAIN-SUFFIX,onlyfans.com",
+
+  // ---- OpenAI / ChatGPT ----
+  "DOMAIN-SUFFIX,openai.com",             // OpenAI 官网/API
+  "DOMAIN-SUFFIX,chatgpt.com",            // ChatGPT
+  "DOMAIN-SUFFIX,oaistatic.com",          // OpenAI 静态资源
+  "DOMAIN-SUFFIX,oaiusercontent.com",     // OpenAI 用户内容
+  "DOMAIN-SUFFIX,sora.com",               // Sora 视频生成
+
 ];
 
 // -------------------- 规则集清单 --------------------
