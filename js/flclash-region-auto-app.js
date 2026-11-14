@@ -1,6 +1,6 @@
 // ============================================================
 // FLClash 覆写脚本
-// 地区自动测速 + 精确规则优先覆盖
+// 地区自动测速 + 精确规则优先覆盖 + 严格防 DNS 泄露
 // ============================================================
 
 // ============================================================
@@ -80,10 +80,11 @@ const DNS_CONFIG = {
   ipv6: false,
   "enhanced-mode": "fake-ip",
   "respect-rules": true,
-  "default-nameserver": ["223.5.5.5", "119.29.29.29", "8.8.8.8"],
+  // 仅保留国内纯 IP 用于引导解析 DoH 域名，杜绝向境外发送明文 UDP 53 查询
+  "default-nameserver": ["223.5.5.5", "119.29.29.29"],
   nameserver: [
     "https://1.1.1.1/dns-query",
-    "https://8.8.8.8/dns-query"
+    "https://8.8.8.8/dns-query",
   ],
   "proxy-server-nameserver": ["https://223.5.5.5/dns-query"],
   "direct-nameserver": ["https://223.5.5.5/dns-query"],
@@ -130,6 +131,13 @@ const APP_PROCESS_RULES = {
 // 每条写完整规则：类型,内容（如 DOMAIN-SUFFIX,xxx.com / DOMAIN-KEYWORD,xxx / IP-CIDR,x.x.x.x/24,no-resolve）
 
 const AUTO_RULES = [
+  // ---- 公共 DNS（配合 respect-rules 走全节点自动测速代理，防 DNS 泄露且高可用） ----
+  "DOMAIN,dns.google",                    // Google 公共 DNS 域名
+  "IP-CIDR,8.8.8.8/32,no-resolve",        // Google 公共 DNS
+  "IP-CIDR,8.8.4.4/32,no-resolve",        // Google 公共 DNS
+  "IP-CIDR,1.1.1.1/32,no-resolve",        // Cloudflare 公共 DNS
+  "IP-CIDR,1.0.0.1/32,no-resolve",        // Cloudflare 公共 DNS
+
   // ---- 指定 APP（走自动测速） ----
   "PROCESS-NAME,com.spotify.music",
 
@@ -157,13 +165,6 @@ const AUTO_RULES = [
 // -------------------- 台湾规则 --------------------
 
 const TAIWAN_RULES = [
-  // ---- 公共 DNS ----
-  "DOMAIN,dns.google",                    // Google 公共 DNS 域名
-  "IP-CIDR,8.8.8.8/32,no-resolve",        // Google 公共 DNS
-  "IP-CIDR,8.8.4.4/32,no-resolve",        // Google 公共 DNS
-  "IP-CIDR,1.1.1.1/32,no-resolve",        // Cloudflare 公共 DNS
-  "IP-CIDR,1.0.0.1/32,no-resolve",        // Cloudflare 公共 DNS
-
   // ---- Google ----
   // 已移除 google.com.hk、googleapis.cn：这两个本来就是为国内优化的，走代理反而可能更慢
   "DOMAIN-SUFFIX,google.com",             // Google 搜索/主站
@@ -239,7 +240,7 @@ const US_RULES = [
   "DOMAIN-SUFFIX,ytimg.com",              // YouTube 缩略图
   "DOMAIN-SUFFIX,ggpht.com",              // YouTube/Google 头像图片
   "DOMAIN-SUFFIX,yt.be",                  // YouTube 短链
-  "DOMAIN-KEYWORD,youtubei",              // YouTube 内部 API
+  "DOMAIN-SUFFIX,youtubei.googleapis.com", // YouTube 内部 API（精确匹配，防止被台湾 googleapis.com 抢走）
 
   // ---- 百科 / 社区 / 问答 / 图床 ----
   "DOMAIN-SUFFIX,wikipedia.org",          // 维基百科
@@ -280,7 +281,6 @@ const US_RULES = [
   "DOMAIN-SUFFIX,oaistatic.com",          // OpenAI 静态资源
   "DOMAIN-SUFFIX,oaiusercontent.com",     // OpenAI 用户内容
   "DOMAIN-SUFFIX,sora.com",               // Sora 视频生成
-
 ];
 
 // -------------------- 规则集清单 --------------------
@@ -295,7 +295,7 @@ const US_RULES = [
 // 顺序即优先级（从上到下匹配，命中即停）：
 // - 所有 PROCESS-NAME（APP 包名）规则无论在哪个规则集，都会被提到全局最前面，
 //   其内部顺序按规则集顺序；之后才是各规则集的域名/IP 规则。
-// - 自动测速放最前面（机场、Spotify）。
+// - 自动测速放最前面（公共 DNS、机场、Spotify）。
 // - 美国必须在台湾前面，否则 youtubei.googleapis.com 会先被台湾的 googleapis.com 抢走。
 // 想新增规则集：写好一份规则常量，再在这里加一行即可。
 const RULE_SETS = [
@@ -356,10 +356,30 @@ const withTarget = (rule, target) => {
   return parts.join(",");
 };
 
+// 创建或同步 url-test 自动测速组
+const ensureUrlTestGroup = (groups, name, nodeNames) => {
+  let group = groups.find((g) => g.name === name);
+
+  if (!group) {
+    group = { name, type: "url-test" };
+    groups.push(group);
+  }
+
+  group.type = "url-test";
+  group.proxies = [...nodeNames];
+  group.url = TEST_URL;
+  group.interval = INTERVAL;
+  group.tolerance = TOLERANCE;
+  group.lazy = true;
+
+  return group;
+};
+
 // -------------------- 主程序 --------------------
 
 const main = (config) => {
-  // 0. DNS 配置
+  // 0. 全局延迟统一计算（剔除 TLS 握手等额外耗时，测速选节点更准确） & DNS 配置
+  config["unified-delay"] = true;
   config.dns = {
     ...(config.dns || {}),
     ...DNS_CONFIG,
@@ -433,50 +453,21 @@ const main = (config) => {
 
     regionGroupNames.push(groupName);
     regionGroupMap.set(region, groupName);
-
-    let group = groups.find((g) => g.name === groupName);
-
-    if (!group) {
-      group = {
-        name: groupName,
-        type: "url-test",
-      };
-      groups.push(group);
-    }
-
-    // 每次订阅更新都同步最新节点
-    group.type = "url-test";
-    group.proxies = [...names];
-    group.url = TEST_URL;
-    group.interval = INTERVAL;
-    group.tolerance = TOLERANCE;
-    group.lazy = true;
+    ensureUrlTestGroup(groups, groupName, names);
   }
 
-  // 4. 机场使用全节点自动测速组
+  // 4. 机场与公共 DNS 使用全节点自动测速组
   //    订阅没有自动选择组时，由脚本创建 GLOBAL_AUTO_NAME
   let airportTarget = subAuto ? subAuto.name : null;
   const scriptCreatedAuto = !subAuto;
 
   if (!airportTarget) {
     airportTarget = GLOBAL_AUTO_NAME;
-
-    let group = groups.find((g) => g.name === GLOBAL_AUTO_NAME);
-
-    if (!group) {
-      group = {
-        name: GLOBAL_AUTO_NAME,
-        type: "url-test",
-      };
-      groups.push(group);
-    }
-
-    group.type = "url-test";
-    group.proxies = proxies.map((p) => p.name);
-    group.url = TEST_URL;
-    group.interval = INTERVAL;
-    group.tolerance = TOLERANCE;
-    group.lazy = true;
+    ensureUrlTestGroup(
+      groups,
+      GLOBAL_AUTO_NAME,
+      proxies.map((p) => p.name)
+    );
   }
 
   // 5. 地区选择组
