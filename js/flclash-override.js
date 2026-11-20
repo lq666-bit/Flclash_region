@@ -417,6 +417,23 @@ const main = (config) => {
   }
 
   const groups = config["proxy-groups"] || [];
+
+  // 从订阅自带的自动类组（url-test / fallback / load-balance）里剔除"信息节点"
+  // （剩余流量、到期时间等）。手动选择组里保留，方便查看流量信息。
+  const infoNames = new Set(
+    (config.proxies || [])
+      .filter((p) => p && p.name && INFO_NODE.test(p.name))
+      .map((p) => p.name)
+  );
+
+  for (const g of groups) {
+    if (!["url-test", "fallback", "load-balance"].includes(g.type)) continue;
+
+    if (Array.isArray(g.proxies)) {
+      g.proxies = g.proxies.filter((n) => !infoNames.has(n));
+    }
+  }
+
   const regionGroupNames = [];
   const regionGroupMap = new Map(); // 地区名 -> 地区自动组名
 
