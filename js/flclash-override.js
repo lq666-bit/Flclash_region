@@ -193,18 +193,6 @@ const TAIWAN_RULES = [
   "DOMAIN-SUFFIX,grok.com",               // Grok 网页版
   "DOMAIN-SUFFIX,x.ai",                   // xAI 官网/API（含 api.x.ai、accounts.x.ai）
 
-  // ---- Twitter / X ----
-  // 已移除 abs.twimg.com：已被 twimg.com 的后缀匹配覆盖
-  "DOMAIN-SUFFIX,twitter.com",            // Twitter
-  "DOMAIN-SUFFIX,x.com",                  // X
-  "DOMAIN-SUFFIX,t.co",                   // Twitter 短链
-  "DOMAIN-SUFFIX,twimg.com",              // Twitter 图片/视频/静态资源
-  "DOMAIN-SUFFIX,twittercdn.com",         // Twitter CDN
-  "DOMAIN-SUFFIX,twitterstat.us",         // Twitter 状态页
-  "DOMAIN-SUFFIX,pscp.tv",                // Periscope 直播
-  "DOMAIN-SUFFIX,periscope.tv",           // Periscope 直播
-  "DOMAIN-SUFFIX,ads-twitter.com",        // Twitter 广告
-
   // ---- GitHub ----
   "DOMAIN-SUFFIX,github.com",             // GitHub 主站
   "DOMAIN-SUFFIX,github.io",              // GitHub Pages 个人站点
@@ -239,6 +227,18 @@ const US_RULES = [
   "DOMAIN-SUFFIX,stackoverflow.com",      // Stack Overflow 技术问答
   "DOMAIN-SUFFIX,stackexchange.com",      // Stack Exchange 问答网络
   "DOMAIN-SUFFIX,imgur.com",              // Imgur 图床
+
+  // ---- Twitter / X ----
+  // 已移除 abs.twimg.com：已被 twimg.com 的后缀匹配覆盖
+  "DOMAIN-SUFFIX,twitter.com",            // Twitter
+  "DOMAIN-SUFFIX,x.com",                  // X
+  "DOMAIN-SUFFIX,t.co",                   // Twitter 短链
+  "DOMAIN-SUFFIX,twimg.com",              // Twitter 图片/视频/静态资源
+  "DOMAIN-SUFFIX,twittercdn.com",         // Twitter CDN
+  "DOMAIN-SUFFIX,twitterstat.us",         // Twitter 状态页
+  "DOMAIN-SUFFIX,pscp.tv",                // Periscope 直播
+  "DOMAIN-SUFFIX,periscope.tv",           // Periscope 直播
+  "DOMAIN-SUFFIX,ads-twitter.com",        // Twitter 广告
 
   // ---- Instagram ----
   "DOMAIN-SUFFIX,instagram.com",          // Instagram 主站
